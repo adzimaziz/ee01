@@ -148,7 +148,7 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
   line-height:1.25;
   cursor:grab;
   user-select:none;
-  touch-action:none;
+  touch-action:none; /* important */
 }
 .chip:active{ cursor:grabbing; }
 
@@ -156,7 +156,14 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
 .chip.correctChip{ border-color: rgba(53,208,127,.95); }
 .chip.wrongChip{ border-color: rgba(255,90,106,.95); }
 
-/* Correct answer panel (ONLY correct answers, no "answered" duplicates) */
+/* While dragging (pointer/touch) */
+.chip.dragging{
+  opacity:.98;
+  box-shadow: 0 18px 40px rgba(0,0,0,.35);
+  cursor:grabbing;
+}
+
+/* Correct answer panel */
 .key{
   background: rgba(0,0,0,.18);
   border: 1px solid rgba(255,255,255,.10);
@@ -340,21 +347,123 @@ const zoneMI = document.querySelector('[data-zone="MI"]');
 const zoneMC = document.querySelector('[data-zone="MC"]');
 const zones = { TS:zoneTS, MI:zoneMI, MC:zoneMC };
 
-let draggedEl = null;
+/* ---------------------------
+   Pointer/touch drag support
+   --------------------------- */
+let activeChip = null;
+let originParent = null;
+let placeholder = null;
+let offsetX = 0;
+let offsetY = 0;
+
 let hasChecked = false;
 
+function makePlaceholder(height){
+  const ph = document.createElement("div");
+  ph.style.height = height + "px";
+  ph.style.borderRadius = "14px";
+  ph.style.border = "2px dashed rgba(255,255,255,.15)";
+  return ph;
+}
+
+function startDrag(el, e){
+  activeChip = el;
+  originParent = el.parentElement;
+
+  // capture pointer so move continues even if finger leaves chip
+  try { el.setPointerCapture(e.pointerId); } catch {}
+
+  const r = el.getBoundingClientRect();
+  offsetX = e.clientX - r.left;
+  offsetY = e.clientY - r.top;
+
+  // placeholder keeps layout height
+  placeholder = makePlaceholder(r.height);
+  originParent.insertBefore(placeholder, el);
+
+  // move chip to body as floating element
+  el.classList.add("dragging");
+  el.style.position = "fixed";
+  el.style.left = (r.left) + "px";
+  el.style.top  = (r.top) + "px";
+  el.style.width = r.width + "px";
+  el.style.zIndex = "9999";
+
+  document.body.appendChild(el);
+  moveDrag(e);
+}
+
+function moveDrag(e){
+  if(!activeChip) return;
+  activeChip.style.left = (e.clientX - offsetX) + "px";
+  activeChip.style.top  = (e.clientY - offsetY) + "px";
+}
+
+function endDrag(e){
+  if(!activeChip) return;
+
+  // find drop target under finger
+  const targetEl = document.elementFromPoint(e.clientX, e.clientY);
+  const dropTarget = targetEl ? targetEl.closest(".dropList, .bank") : null;
+
+  // remove placeholder
+  if (placeholder && placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+
+  // place chip
+  if (dropTarget){
+    dropTarget.appendChild(activeChip); // MOVE
+  }else{
+    // if not dropped on a valid target, return to origin
+    originParent.appendChild(activeChip);
+  }
+
+  // reset styles
+  activeChip.classList.remove("dragging");
+  activeChip.style.position = "";
+  activeChip.style.left = "";
+  activeChip.style.top = "";
+  activeChip.style.width = "";
+  activeChip.style.zIndex = "";
+
+  activeChip = null;
+  originParent = null;
+  placeholder = null;
+
+  // If user moves after check, clear marks & hide key so they can try again
+  if (hasChecked){
+    clearZoneMarks();
+    clearChipMarks();
+    hideAnswerKey();
+    scorePill.classList.add("hidden");
+    btnShowKey.disabled = true;
+    btnShowKey.textContent = "Show Correct Answers";
+    hasChecked = false;
+  }
+
+  updateCounts();
+}
+
+/* Attach pointer handlers to a chip */
+function wireChipPointer(el){
+  el.addEventListener("pointerdown", (e)=>{
+    // only primary pointer
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault(); // stop page scroll while dragging
+    startDrag(el, e);
+  }, { passive:false });
+}
+
+/* ---------------------------
+   App logic (same as yours)
+   --------------------------- */
 function makeChip(item){
   const el = document.createElement("div");
   el.className = "chip";
   el.textContent = item.text;
-  el.draggable = true;
   el.dataset.id = item.id;
   el.dataset.correct = item.cat;
 
-  el.ondragstart = (e) => {
-    draggedEl = el;
-    e.dataTransfer.setData("text/plain", item.id);
-  };
+  wireChipPointer(el);
   return el;
 }
 
@@ -401,30 +510,6 @@ function buildAnswerKey(){
   });
 }
 
-function setupDropTarget(container){
-  container.ondragover = (e) => e.preventDefault();
-  container.ondrop = (e) => {
-    e.preventDefault();
-    if(!draggedEl) return;
-
-    container.appendChild(draggedEl); // MOVE
-    draggedEl = null;
-
-    // If user moves after check, clear marks & hide key so they can try again
-    if (hasChecked){
-      clearZoneMarks();
-      clearChipMarks();
-      hideAnswerKey();
-      scorePill.classList.add("hidden");
-      btnShowKey.disabled = true;
-      btnShowKey.textContent = "Show Correct Answers";
-      hasChecked = false;
-    }
-
-    updateCounts();
-  };
-}
-
 function build(){
   bank.innerHTML = "";
   listTS.innerHTML = "";
@@ -449,11 +534,10 @@ function build(){
   buildAnswerKey();
 }
 
-/* Drop targets */
-setupDropTarget(listTS);
-setupDropTarget(listMI);
-setupDropTarget(listMC);
-setupDropTarget(bank);
+/* Global pointer handlers */
+document.addEventListener("pointermove", (e)=> moveDrag(e), { passive:false });
+document.addEventListener("pointerup", (e)=> endDrag(e), { passive:true });
+document.addEventListener("pointercancel", (e)=> endDrag(e), { passive:true });
 
 /* Check: no auto-correct. Zone green only if fully correct. Individual chips show green/red stroke. */
 document.getElementById("check").onclick = () => {
