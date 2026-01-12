@@ -77,6 +77,10 @@ button{
   font-size:13px;
 }
 button.secondary{ background: rgba(255,255,255,.10); }
+button:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+}
 
 .pill{
   padding:8px 12px;
@@ -156,7 +160,7 @@ button.secondary{ background: rgba(255,255,255,.10); }
 }
 .chip:active{ cursor:grabbing; }
 
-/* ✅ Individual marking */
+/* Individual marking after Check */
 .chip.correctChip{
   border:2px solid rgba(53,208,127,.95);
   background: rgba(53,208,127,.20);
@@ -166,37 +170,42 @@ button.secondary{ background: rgba(255,255,255,.10); }
   background: rgba(255,90,106,.16);
 }
 
-/* Bank */
-.bankWrap{
-  background: var(--panel);
-  border:1px solid var(--panelBorder);
+/* Answer key panel */
+.key{
+  background: rgba(0,0,0,.18);
+  border: 1px solid rgba(255,255,255,.10);
   border-radius: var(--r);
   padding:12px;
   box-shadow: var(--shadow);
 }
-.bankHeader{
-  display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
-  margin-bottom:10px;
-}
-.bankTitle{
-  font-weight:1000;
+.key h3{
+  margin:0 0 10px;
   font-size:14px;
+  letter-spacing:.2px;
 }
-.bankHint{
-  font-size:12px;
-  color:var(--muted);
-}
-.bank{
-  display:flex;
-  flex-direction:column;
+.keyGrid{
+  display:grid;
   gap:10px;
 }
+.keyBox{
+  background: rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  padding:10px;
+}
+.keyTitle{
+  font-weight:1000;
+  margin-bottom:8px;
+}
+.keyList{
+  margin:0;
+  padding-left:18px;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.35;
+}
+.keyList li{ margin:6px 0; }
 
-/* Tablet/desktop */
 @media (min-width: 900px){
   .layout{
     display:grid;
@@ -205,10 +214,9 @@ button.secondary{ background: rgba(255,255,255,.10); }
     align-items:start;
   }
   .zonesColumn{ grid-column: 1 / 2; display:flex; flex-direction:column; gap:12px; }
-  .bankWrap{ grid-column: 2 / 3; position:sticky; top:12px; }
+  .rightColumn{ grid-column: 2 / 3; position:sticky; top:12px; display:flex; flex-direction:column; gap:12px; }
 }
 
-/* Small phones */
 @media (max-width: 380px){
   header h1{ font-size:16px; }
   .chip{ font-size:12px; }
@@ -220,13 +228,14 @@ button.secondary{ background: rgba(255,255,255,.10); }
 <body>
 <header>
   <h1>Categorize the Points</h1>
-  <p>Drag each point into the correct category. Tap <b>Check</b> to mark. Boxes go green only when fully correct. Individual correct points also turn green.</p>
+  <p>Drag each point into the correct category. Tap <b>Check</b> to mark. Tap <b>Show Correct Answers</b> to view the answer key (no auto-correct).</p>
 </header>
 
 <main class="container">
   <div class="toolbar">
     <div class="btnRow">
       <button id="check">Check</button>
+      <button id="showKey" class="secondary" disabled>Show Correct Answers</button>
       <button id="reset" class="secondary">Reset</button>
     </div>
     <div class="pill hidden" id="score">Score: 0/0</div>
@@ -259,13 +268,36 @@ button.secondary{ background: rgba(255,255,255,.10); }
       </div>
     </div>
 
-    <aside class="bankWrap">
-      <div class="bankHeader">
-        <div class="bankTitle">Points (drag from here)</div>
-        <div class="bankHint">Move (not copy). Re-drag to another box anytime.</div>
-      </div>
-      <div class="bank" id="bank"></div>
-    </aside>
+    <div class="rightColumn">
+      <aside class="key hidden" id="answerKey">
+        <h3>Correct Answers (Answer Key)</h3>
+
+        <div class="keyGrid">
+          <div class="keyBox">
+            <div class="keyTitle">Technical system</div>
+            <ul class="keyList" id="keyTS"></ul>
+          </div>
+
+          <div class="keyBox">
+            <div class="keyTitle">Management infrastructure</div>
+            <ul class="keyList" id="keyMI"></ul>
+          </div>
+
+          <div class="keyBox">
+            <div class="keyTitle">Mindsets and capabilities</div>
+            <ul class="keyList" id="keyMC"></ul>
+          </div>
+        </div>
+      </aside>
+
+      <aside class="key" id="bankWrap">
+        <h3>Points (drag from here)</h3>
+        <div style="color:var(--muted);font-size:12px;margin:-4px 0 10px;">
+          Move (not copy). Re-drag to another box anytime.
+        </div>
+        <div class="bank" id="bank"></div>
+      </aside>
+    </div>
   </section>
 </main>
 
@@ -284,6 +316,8 @@ const ITEMS = [
 
 const bank = document.getElementById("bank");
 const scorePill = document.getElementById("score");
+const btnShowKey = document.getElementById("showKey");
+const answerKeyPanel = document.getElementById("answerKey");
 
 const listTS = document.querySelector('[data-drop-list="TS"]');
 const listMI = document.querySelector('[data-drop-list="MI"]');
@@ -296,6 +330,7 @@ const zoneMC = document.querySelector('[data-zone="MC"]');
 const zones = { TS:zoneTS, MI:zoneMI, MC:zoneMC };
 
 let draggedEl = null;
+let hasChecked = false;
 
 function makeChip(item){
   const el = document.createElement("div");
@@ -332,6 +367,29 @@ function clearChipMarks(){
   });
 }
 
+function hideAnswerKey(){
+  answerKeyPanel.classList.add("hidden");
+}
+
+function buildAnswerKey(){
+  const keyTS = document.getElementById("keyTS");
+  const keyMI = document.getElementById("keyMI");
+  const keyMC = document.getElementById("keyMC");
+  keyTS.innerHTML = "";
+  keyMI.innerHTML = "";
+  keyMC.innerHTML = "";
+
+  ITEMS.filter(i=>i.cat==="TS").forEach(i=>{
+    const li=document.createElement("li"); li.textContent=i.text; keyTS.appendChild(li);
+  });
+  ITEMS.filter(i=>i.cat==="MI").forEach(i=>{
+    const li=document.createElement("li"); li.textContent=i.text; keyMI.appendChild(li);
+  });
+  ITEMS.filter(i=>i.cat==="MC").forEach(i=>{
+    const li=document.createElement("li"); li.textContent=i.text; keyMC.appendChild(li);
+  });
+}
+
 function setupDropTarget(container){
   container.ondragover = (e) => e.preventDefault();
   container.ondrop = (e) => {
@@ -341,14 +399,22 @@ function setupDropTarget(container){
     container.appendChild(draggedEl); // MOVE
     draggedEl = null;
 
-    // When moving again, remove marks so they can try again cleanly
-    clearZoneMarks();
-    clearChipMarks();
+    // If user moves after check, clear marks & hide key so they can try again
+    if (hasChecked){
+      clearZoneMarks();
+      clearChipMarks();
+      hideAnswerKey();
+      scorePill.classList.add("hidden");
+      btnShowKey.disabled = true;
+      hasChecked = false;
+    }
+
     updateCounts();
   };
 }
 
 function build(){
+  // reset containers
   bank.innerHTML = "";
   listTS.innerHTML = "";
   listMI.innerHTML = "";
@@ -356,14 +422,21 @@ function build(){
   clearZoneMarks();
   clearChipMarks();
 
+  // reset UI state
+  hideAnswerKey();
+  btnShowKey.disabled = true;
+  hasChecked = false;
+
   scorePill.classList.add("hidden");
   scorePill.textContent = `Score: 0/${ITEMS.length}`;
 
+  // add items to bank (shuffle)
   ITEMS.slice().sort(()=>Math.random()-0.5).forEach(item=>{
     bank.appendChild(makeChip(item));
   });
 
   updateCounts();
+  buildAnswerKey();
 }
 
 /* Drop targets */
@@ -372,10 +445,11 @@ setupDropTarget(listMI);
 setupDropTarget(listMC);
 setupDropTarget(bank);
 
-/* Check: (1) zone green only if fully correct, (2) individual correct chips green even if zone is red */
+/* Check: no auto-correct. Zone green only if fully correct. Individual correct chips green even if zone red. */
 document.getElementById("check").onclick = () => {
   clearZoneMarks();
   clearChipMarks();
+  hideAnswerKey();
 
   // Build position map id -> current container key (TS/MI/MC/BANK)
   const pos = {};
@@ -387,12 +461,10 @@ document.getElementById("check").onclick = () => {
     });
   });
 
-  // Mark individual chips correct/incorrect (only those placed in TS/MI/MC)
+  // Mark chips placed in TS/MI/MC
   let correctCount = 0;
-
   ["TS","MI","MC"].forEach(cat=>{
-    const list = lists[cat];
-    list.querySelectorAll(".chip").forEach(ch=>{
+    lists[cat].querySelectorAll(".chip").forEach(ch=>{
       const id = ch.dataset.id;
       const correctCat = ITEMS.find(i=>i.id===id)?.cat;
       if (correctCat === cat){
@@ -404,7 +476,7 @@ document.getElementById("check").onclick = () => {
     });
   });
 
-  // Zone logic: green ONLY if all required are present AND no wrong chips in zone
+  // Zone status: green ONLY if all required items are present AND no wrong items inside
   ["TS","MI","MC"].forEach(cat=>{
     const requiredIds = ITEMS.filter(i=>i.cat===cat).map(i=>i.id);
     const placedIds = [...lists[cat].querySelectorAll(".chip")].map(ch=>ch.dataset.id);
@@ -415,34 +487,28 @@ document.getElementById("check").onclick = () => {
     zones[cat].classList.add((!hasWrong && !missing) ? "correct" : "wrong");
   });
 
-  // Auto-correct: move any item not in its correct category into correct category
-  // BUT keep individual marking visible: we'll re-mark after move.
-  ITEMS.forEach(item=>{
-    if (pos[item.id] !== item.cat){
-      let el = document.querySelector(`.chip[data-id="${item.id}"]`);
-      if (!el) el = makeChip(item);
-      lists[item.cat].appendChild(el);
-    }
-  });
-
-  // Re-mark chips after auto-correct so users see final correct placement in green
-  clearChipMarks();
-  ["TS","MI","MC"].forEach(cat=>{
-    lists[cat].querySelectorAll(".chip").forEach(ch=>{
-      const id = ch.dataset.id;
-      const correctCat = ITEMS.find(i=>i.id===id)?.cat;
-      if (correctCat === cat) ch.classList.add("correctChip");
-      else ch.classList.add("wrongChip");
-    });
-  });
-
-  updateCounts();
-
   scorePill.textContent = `Score: ${correctCount}/${ITEMS.length}`;
   scorePill.classList.remove("hidden");
+
+  // enable show key after check
+  hasChecked = true;
+  btnShowKey.disabled = false;
 };
 
-document.getElementById("reset").onclick = build;
+/* Show corrected answers (answer key) after Check */
+btnShowKey.onclick = () => {
+  if (!hasChecked) return;
+  answerKeyPanel.classList.toggle("hidden");
+  btnShowKey.textContent = answerKeyPanel.classList.contains("hidden")
+    ? "Show Correct Answers"
+    : "Hide Correct Answers";
+};
+
+/* Reset */
+document.getElementById("reset").onclick = () => {
+  btnShowKey.textContent = "Show Correct Answers";
+  build();
+};
 
 build();
 </script>
