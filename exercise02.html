@@ -74,7 +74,7 @@ button.secondary{ background:rgba(255,255,255,.1); }
 .diagram{
   position:relative;
   width:100%;
-  aspect-ratio: 1 / 1;  /* this diagram is more square */
+  aspect-ratio: 1 / 1;
   background:white;
   border-radius:12px;
   overflow:hidden;
@@ -103,6 +103,9 @@ button.secondary{ background:rgba(255,255,255,.1); }
 }
 .dropzone.correct{ background:rgba(53,208,127,.25); border-color:var(--ok); }
 .dropzone.wrong{ background:rgba(255,90,106,.25); border-color:var(--bad); }
+
+/* make right-side boxes look like one group when hovering (optional) */
+.dropzone.groupHint{ border-style:dashed; }
 
 .bankHeader{ padding:12px 12px 0; font-weight:800; }
 .bank{
@@ -147,30 +150,27 @@ button.secondary{ background:rgba(255,255,255,.1); }
 
     <div class="canvas">
       <div class="diagram">
-        <!-- ✅ Put your image in the same folder and name it: massflow.png -->
+        <!-- Put your image in the same folder and name it: massflow.png -->
         <img src="massflow.png" alt="Energy content of a mass flow diagram">
 
-        <!-- Dropzones placed over the grey boxes in your image -->
-        <!-- Left box -->
+        <!-- Fixed-match zones -->
         <div class="dropzone" data-answer="Energy content of a mass flow"
              style="left:5%; top:36%; width:22%; height:28%;">Drop here</div>
 
-        <!-- Middle top -->
         <div class="dropzone" data-answer="Mass flow rate"
              style="left:34%; top:8%; width:28%; height:24%;">Drop here</div>
 
-        <!-- Middle bottom -->
         <div class="dropzone" data-answer="Enthalpy of mass flow rate"
              style="left:35%; top:58%; width:28%; height:28%;">Drop here</div>
 
-        <!-- Right column -->
-        <div class="dropzone" data-answer="Temperature"
+        <!-- Right column: ANY of these 3 labels can go into ANY of these 3 boxes -->
+        <div class="dropzone groupHint" data-group="TPS"
              style="left:72%; top:34%; width:24%; height:14%;">Drop here</div>
 
-        <div class="dropzone" data-answer="Pressure"
+        <div class="dropzone groupHint" data-group="TPS"
              style="left:72%; top:52%; width:24%; height:14%;">Drop here</div>
 
-        <div class="dropzone" data-answer="Steam content"
+        <div class="dropzone groupHint" data-group="TPS"
              style="left:72%; top:70%; width:24%; height:16%;">Drop here</div>
       </div>
     </div>
@@ -191,6 +191,9 @@ const labels = [
   "Pressure",
   "Steam content"
 ];
+
+// These can be placed in ANY of the zones with data-group="TPS"
+const FLEX_GROUP = new Set(["Temperature","Pressure","Steam content"]);
 
 const bank = document.getElementById("bank");
 const zones = document.querySelectorAll(".dropzone");
@@ -226,11 +229,32 @@ function build(){
   scoreBox.classList.add("hidden");
 }
 
+function zoneAccepts(zone, label){
+  // If this is a flexible zone group, allow only TPS labels there
+  if (zone.dataset.group === "TPS") return FLEX_GROUP.has(label);
+
+  // Otherwise fixed zones must match exact answer
+  return zone.dataset.answer === label;
+}
+
 zones.forEach(zone=>{
   zone.ondragover = (e) => e.preventDefault();
+
   zone.ondrop = (e) => {
     e.preventDefault();
     if(!draggedChip) return;
+
+    const label = draggedChip.textContent;
+
+    // Block invalid drops
+    if(!zoneAccepts(zone, label)){
+      // small feedback
+      zone.classList.remove("correct");
+      zone.classList.add("wrong");
+      setTimeout(()=>zone.classList.remove("wrong"), 300);
+      draggedChip = null;
+      return;
+    }
 
     // If zone already filled, return old value to bank
     if(zone.dataset.value){
@@ -238,8 +262,8 @@ zones.forEach(zone=>{
     }
 
     // MOVE dragged chip into this zone
-    zone.textContent = draggedChip.textContent;
-    zone.dataset.value = draggedChip.textContent;
+    zone.textContent = label;
+    zone.dataset.value = label;
 
     draggedChip.remove();
     draggedChip = null;
@@ -255,7 +279,23 @@ document.getElementById("check").onclick = () => {
   zones.forEach(z=>{
     z.classList.remove("correct","wrong");
 
-    if(z.dataset.value === z.dataset.answer){
+    const val = z.dataset.value || "";
+
+    if (z.dataset.group === "TPS") {
+      // flexible group: correct if it contains ANY of the TPS labels (and not empty)
+      if (FLEX_GROUP.has(val)) {
+        z.classList.add("correct");
+        correct++;
+      } else {
+        z.classList.add("wrong");
+        // auto reveal (fill the remaining missing ones in a clean way)
+        z.textContent = "Temperature / Pressure / Steam content";
+      }
+      return;
+    }
+
+    // fixed zones
+    if(val === z.dataset.answer){
       z.classList.add("correct");
       correct++;
     }else{
