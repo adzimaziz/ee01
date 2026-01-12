@@ -125,13 +125,9 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
   border-radius:999px;
 }
 
-/* ✅ Requirement #1: do NOT tint the box. Keep white content boxes; only stroke changes. */
-.zone.correct{
-  border-color: rgba(53,208,127,.95);
-}
-.zone.wrong{
-  border-color: rgba(255,90,106,.95);
-}
+/* Stroke only (no tint) */
+.zone.correct{ border-color: rgba(53,208,127,.95); }
+.zone.wrong{ border-color: rgba(255,90,106,.95); }
 
 .dropList{
   min-height: 90px;
@@ -140,7 +136,7 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
   gap:10px;
 }
 
-/* Chips */
+/* Chips: white background + black text always */
 .chip{
   background: #ffffff;
   color:#000000;
@@ -156,15 +152,11 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
 }
 .chip:active{ cursor:grabbing; }
 
-/* ✅ Individual marking after Check: stroke only, keep white background + black text */
-.chip.correctChip{
-  border-color: rgba(53,208,127,.95);
-}
-.chip.wrongChip{
-  border-color: rgba(255,90,106,.95);
-}
+/* Individual marking: stroke only */
+.chip.correctChip{ border-color: rgba(53,208,127,.95); }
+.chip.wrongChip{ border-color: rgba(255,90,106,.95); }
 
-/* Answer key panel */
+/* Correct answer panel (ONLY correct answers, no "answered" duplicates) */
 .key{
   background: rgba(0,0,0,.18);
   border: 1px solid rgba(255,255,255,.10);
@@ -177,32 +169,16 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
   font-size:14px;
   letter-spacing:.2px;
 }
-
-/* Two-column blocks inside the key */
-.keyBlock{
+.keyBox{
   background: rgba(255,255,255,.06);
   border:1px solid rgba(255,255,255,.12);
   border-radius: 14px;
   padding:10px;
   margin-bottom:10px;
 }
-.keyTitleRow{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  align-items:center;
-  margin-bottom:8px;
-}
 .keyTitle{
   font-weight:1000;
-}
-.keyTag{
-  font-size:12px;
-  color:var(--muted);
-  background: rgba(0,0,0,.18);
-  border:1px solid rgba(255,255,255,.10);
-  padding:4px 8px;
-  border-radius:999px;
+  margin-bottom:8px;
 }
 .keyList{
   margin:0;
@@ -212,10 +188,6 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
   line-height:1.35;
 }
 .keyList li{ margin:6px 0; }
-.keyEmpty{
-  color:var(--muted);
-  font-size:13px;
-}
 
 /* Bank */
 .bankWrap{
@@ -269,7 +241,7 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
 <body>
 <header>
   <h1>Categorize the Points</h1>
-  <p>Drag each point into the correct category. Tap <b>Check</b> to mark (stroke only). Tap <b>Show Correct Answers</b> to compare Answered vs Correct.</p>
+  <p>Drag points into the correct category. Tap <b>Check</b> to mark (green/red stroke). Tap <b>Show Correct Answers</b> to view the answer key.</p>
 </header>
 
 <main class="container">
@@ -310,11 +282,23 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
     </div>
 
     <div class="rightColumn">
-      <!-- ✅ Requirement #2: Order is (Answered) then (Correct Answer) for each category -->
       <aside class="key hidden" id="answerKey">
-        <h3>Compare: Answered vs Correct</h3>
+        <h3>Correct Answers</h3>
 
-        <div id="keyBlocks"></div>
+        <div class="keyBox">
+          <div class="keyTitle">Technical system</div>
+          <ul class="keyList" id="keyTS"></ul>
+        </div>
+
+        <div class="keyBox">
+          <div class="keyTitle">Management infrastructure</div>
+          <ul class="keyList" id="keyMI"></ul>
+        </div>
+
+        <div class="keyBox">
+          <div class="keyTitle">Mindsets and capabilities</div>
+          <ul class="keyList" id="keyMC"></ul>
+        </div>
       </aside>
 
       <aside class="bankWrap" id="bankWrap">
@@ -341,17 +325,10 @@ const ITEMS = [
   { id:"mc1", cat:"MC", text:"Building awareness and capabilities from top/middle management down to shop floor by involving the whole organization" }
 ];
 
-const CAT_LABEL = {
-  TS: "Technical system",
-  MI: "Management infrastructure",
-  MC: "Mindsets and capabilities"
-};
-
 const bank = document.getElementById("bank");
 const scorePill = document.getElementById("score");
 const btnShowKey = document.getElementById("showKey");
 const answerKeyPanel = document.getElementById("answerKey");
-const keyBlocks = document.getElementById("keyBlocks");
 
 const listTS = document.querySelector('[data-drop-list="TS"]');
 const listMI = document.querySelector('[data-drop-list="MI"]');
@@ -405,85 +382,23 @@ function hideAnswerKey(){
   answerKeyPanel.classList.add("hidden");
 }
 
-function getPlacements(){
-  // id -> TS/MI/MC/BANK
-  const pos = {};
-  ITEMS.forEach(i => pos[i.id] = "BANK");
+function buildAnswerKey(){
+  const keyTS = document.getElementById("keyTS");
+  const keyMI = document.getElementById("keyMI");
+  const keyMC = document.getElementById("keyMC");
+  keyTS.innerHTML = "";
+  keyMI.innerHTML = "";
+  keyMC.innerHTML = "";
 
-  Object.entries(lists).forEach(([cat, list])=>{
-    list.querySelectorAll(".chip").forEach(ch=>{
-      pos[ch.dataset.id] = cat;
-    });
+  ITEMS.filter(i=>i.cat==="TS").forEach(i=>{
+    const li=document.createElement("li"); li.textContent=i.text; keyTS.appendChild(li);
   });
-
-  bank.querySelectorAll(".chip").forEach(ch=>{
-    pos[ch.dataset.id] = "BANK";
+  ITEMS.filter(i=>i.cat==="MI").forEach(i=>{
+    const li=document.createElement("li"); li.textContent=i.text; keyMI.appendChild(li);
   });
-
-  return pos;
-}
-
-function buildCompareKey(){
-  // builds blocks in requested order:
-  // TS answered, TS correct, MI answered, MI correct, MC answered, MC correct
-  const pos = getPlacements();
-
-  function makeBlock(title, tag, itemsText){
-    const block = document.createElement("div");
-    block.className = "keyBlock";
-
-    const titleRow = document.createElement("div");
-    titleRow.className = "keyTitleRow";
-
-    const t = document.createElement("div");
-    t.className = "keyTitle";
-    t.textContent = title;
-
-    const badge = document.createElement("div");
-    badge.className = "keyTag";
-    badge.textContent = tag;
-
-    titleRow.appendChild(t);
-    titleRow.appendChild(badge);
-    block.appendChild(titleRow);
-
-    if (!itemsText.length){
-      const empty = document.createElement("div");
-      empty.className = "keyEmpty";
-      empty.textContent = "(none)";
-      block.appendChild(empty);
-      return block;
-    }
-
-    const ul = document.createElement("ul");
-    ul.className = "keyList";
-    itemsText.forEach(tx=>{
-      const li = document.createElement("li");
-      li.textContent = tx;
-      ul.appendChild(li);
-    });
-    block.appendChild(ul);
-    return block;
-  }
-
-  const order = ["TS","MI","MC"];
-  const out = document.createDocumentFragment();
-
-  order.forEach(cat=>{
-    const answered = ITEMS
-      .filter(i => pos[i.id] === cat)
-      .map(i => i.text);
-
-    const correct = ITEMS
-      .filter(i => i.cat === cat)
-      .map(i => i.text);
-
-    out.appendChild(makeBlock(CAT_LABEL[cat], "answered", answered));
-    out.appendChild(makeBlock(CAT_LABEL[cat], "correct answer", correct));
+  ITEMS.filter(i=>i.cat==="MC").forEach(i=>{
+    const li=document.createElement("li"); li.textContent=i.text; keyMC.appendChild(li);
   });
-
-  keyBlocks.innerHTML = "";
-  keyBlocks.appendChild(out);
 }
 
 function setupDropTarget(container){
@@ -531,7 +446,7 @@ function build(){
   });
 
   updateCounts();
-  buildCompareKey(); // so key is ready if shown later
+  buildAnswerKey();
 }
 
 /* Drop targets */
@@ -540,15 +455,22 @@ setupDropTarget(listMI);
 setupDropTarget(listMC);
 setupDropTarget(bank);
 
-/* Check: no auto-correct. Zone green only if fully correct. Individual chips: stroke only. */
+/* Check: no auto-correct. Zone green only if fully correct. Individual chips show green/red stroke. */
 document.getElementById("check").onclick = () => {
   clearZoneMarks();
   clearChipMarks();
   hideAnswerKey();
 
-  const pos = getPlacements();
+  // pos map id -> TS/MI/MC/BANK
+  const pos = {};
+  ITEMS.forEach(i => pos[i.id] = "BANK");
+  Object.entries(lists).forEach(([cat, list])=>{
+    list.querySelectorAll(".chip").forEach(ch=>{
+      pos[ch.dataset.id] = cat;
+    });
+  });
 
-  // Mark chips in TS/MI/MC
+  // mark chips placed in TS/MI/MC
   let correctCount = 0;
   ["TS","MI","MC"].forEach(cat=>{
     lists[cat].querySelectorAll(".chip").forEach(ch=>{
@@ -563,7 +485,7 @@ document.getElementById("check").onclick = () => {
     });
   });
 
-  // Zone status: green ONLY if all required present AND no wrong items
+  // zone status: green only if ALL required present AND no wrong items
   ["TS","MI","MC"].forEach(cat=>{
     const requiredIds = ITEMS.filter(i=>i.cat===cat).map(i=>i.id);
     const placedIds = [...lists[cat].querySelectorAll(".chip")].map(ch=>ch.dataset.id);
@@ -577,21 +499,13 @@ document.getElementById("check").onclick = () => {
   scorePill.textContent = `Score: ${correctCount}/${ITEMS.length}`;
   scorePill.classList.remove("hidden");
 
-  // enable show key after check
   hasChecked = true;
   btnShowKey.disabled = false;
-
-  // refresh compare content based on current answers
-  buildCompareKey();
 };
 
-/* Show corrected answers (answered vs correct) after Check */
+/* Show correct answers (answer key only) */
 btnShowKey.onclick = () => {
   if (!hasChecked) return;
-
-  // rebuild every time in case user wants latest (usually unchanged after check)
-  buildCompareKey();
-
   const willShow = answerKeyPanel.classList.contains("hidden");
   answerKeyPanel.classList.toggle("hidden");
   btnShowKey.textContent = willShow ? "Hide Correct Answers" : "Show Correct Answers";
