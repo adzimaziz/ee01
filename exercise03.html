@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Drag & Drop – Categorize Points (Mobile Friendly, No Image)</title>
+<title>Tap Label → Tap Box – Categorize Points (Mobile Friendly)</title>
 
 <style>
 :root{
@@ -89,6 +89,28 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
 }
 .hidden{ display:none !important; }
 
+.helper{
+  margin-top:10px;
+  font-size:12px;
+  color:var(--muted);
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.helper .badge{
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+  border-radius:999px;
+  padding:6px 10px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+}
+.helper .dot{
+  width:10px;height:10px;border-radius:50%;
+  background: rgba(110,168,255,.85);
+}
+
 .layout{
   display:flex;
   flex-direction:column;
@@ -103,6 +125,10 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
   padding:12px;
   box-shadow: var(--shadow);
 }
+
+/* Stroke only (no tint) */
+.zone.correct{ border-color: rgba(53,208,127,.95); }
+.zone.wrong{ border-color: rgba(255,90,106,.95); }
 
 .zoneHeader{
   display:flex;
@@ -125,10 +151,13 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
   border-radius:999px;
 }
 
-/* Stroke only (no tint) */
-.zone.correct{ border-color: rgba(53,208,127,.95); }
-.zone.wrong{ border-color: rgba(255,90,106,.95); }
+/* Tap target highlight */
+.zone.tapTarget{
+  outline:3px solid rgba(110,168,255,.55);
+  outline-offset:2px;
+}
 
+/* Drop list */
 .dropList{
   min-height: 90px;
   display:flex;
@@ -136,7 +165,7 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
   gap:10px;
 }
 
-/* Chips: white background + black text always */
+/* Chips */
 .chip{
   background: #ffffff;
   color:#000000;
@@ -146,22 +175,17 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
   font-weight:850;
   font-size:13px;
   line-height:1.25;
-  cursor:grab;
+  cursor:pointer;
   user-select:none;
-  touch-action:none; /* important */
 }
-.chip:active{ cursor:grabbing; }
+.chip.selected{
+  border-color: rgba(110,168,255,.95);
+  box-shadow: 0 12px 26px rgba(0,0,0,.25);
+}
 
 /* Individual marking: stroke only */
 .chip.correctChip{ border-color: rgba(53,208,127,.95); }
 .chip.wrongChip{ border-color: rgba(255,90,106,.95); }
-
-/* While dragging (pointer/touch) */
-.chip.dragging{
-  opacity:.98;
-  box-shadow: 0 18px 40px rgba(0,0,0,.35);
-  cursor:grabbing;
-}
 
 /* Correct answer panel */
 .key{
@@ -248,7 +272,7 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
 <body>
 <header>
   <h1>Categorize the Points</h1>
-  <p>Drag points into the correct category. Tap <b>Check</b> to mark (green/red stroke). Tap <b>Show Correct Answers</b> to view the answer key.</p>
+  <p>Tap a point, then tap a category box. Tap a point inside a box to return it to the bank. Tap <b>Check</b> to mark.</p>
 </header>
 
 <main class="container">
@@ -286,6 +310,12 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
         </div>
         <div class="dropList" data-drop-list="MC"></div>
       </div>
+
+      <div class="helper">
+        <span class="badge"><span class="dot"></span> Step 1: Tap a point</span>
+        <span class="badge"><span class="dot"></span> Step 2: Tap a category box</span>
+        <span class="badge">Tap point in box = return to bank</span>
+      </div>
     </div>
 
     <div class="rightColumn">
@@ -310,8 +340,8 @@ button:disabled{ opacity:.5; cursor:not-allowed; }
 
       <aside class="bankWrap" id="bankWrap">
         <div class="bankHeader">
-          <div class="bankTitle">Points (drag from here)</div>
-          <div class="bankHint">Move (not copy). Re-drag to another box anytime.</div>
+          <div class="bankTitle">Points (tap one)</div>
+          <div class="bankHint">Then tap a category box to place it</div>
         </div>
         <div class="bank" id="bank"></div>
       </aside>
@@ -347,124 +377,22 @@ const zoneMI = document.querySelector('[data-zone="MI"]');
 const zoneMC = document.querySelector('[data-zone="MC"]');
 const zones = { TS:zoneTS, MI:zoneMI, MC:zoneMC };
 
-/* ---------------------------
-   Pointer/touch drag support
-   --------------------------- */
-let activeChip = null;
-let originParent = null;
-let placeholder = null;
-let offsetX = 0;
-let offsetY = 0;
-
+/* Tap-select state */
+let selectedChip = null;
+let selectedItemId = null;
 let hasChecked = false;
 
-function makePlaceholder(height){
-  const ph = document.createElement("div");
-  ph.style.height = height + "px";
-  ph.style.borderRadius = "14px";
-  ph.style.border = "2px dashed rgba(255,255,255,.15)";
-  return ph;
+function clearSelection(){
+  document.querySelectorAll(".chip.selected").forEach(c=>c.classList.remove("selected"));
+  Object.values(zones).forEach(z=>z.classList.remove("tapTarget"));
+  selectedChip = null;
+  selectedItemId = null;
 }
 
-function startDrag(el, e){
-  activeChip = el;
-  originParent = el.parentElement;
-
-  // capture pointer so move continues even if finger leaves chip
-  try { el.setPointerCapture(e.pointerId); } catch {}
-
-  const r = el.getBoundingClientRect();
-  offsetX = e.clientX - r.left;
-  offsetY = e.clientY - r.top;
-
-  // placeholder keeps layout height
-  placeholder = makePlaceholder(r.height);
-  originParent.insertBefore(placeholder, el);
-
-  // move chip to body as floating element
-  el.classList.add("dragging");
-  el.style.position = "fixed";
-  el.style.left = (r.left) + "px";
-  el.style.top  = (r.top) + "px";
-  el.style.width = r.width + "px";
-  el.style.zIndex = "9999";
-
-  document.body.appendChild(el);
-  moveDrag(e);
-}
-
-function moveDrag(e){
-  if(!activeChip) return;
-  activeChip.style.left = (e.clientX - offsetX) + "px";
-  activeChip.style.top  = (e.clientY - offsetY) + "px";
-}
-
-function endDrag(e){
-  if(!activeChip) return;
-
-  // find drop target under finger
-  const targetEl = document.elementFromPoint(e.clientX, e.clientY);
-  const dropTarget = targetEl ? targetEl.closest(".dropList, .bank") : null;
-
-  // remove placeholder
-  if (placeholder && placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
-
-  // place chip
-  if (dropTarget){
-    dropTarget.appendChild(activeChip); // MOVE
-  }else{
-    // if not dropped on a valid target, return to origin
-    originParent.appendChild(activeChip);
-  }
-
-  // reset styles
-  activeChip.classList.remove("dragging");
-  activeChip.style.position = "";
-  activeChip.style.left = "";
-  activeChip.style.top = "";
-  activeChip.style.width = "";
-  activeChip.style.zIndex = "";
-
-  activeChip = null;
-  originParent = null;
-  placeholder = null;
-
-  // If user moves after check, clear marks & hide key so they can try again
-  if (hasChecked){
-    clearZoneMarks();
-    clearChipMarks();
-    hideAnswerKey();
-    scorePill.classList.add("hidden");
-    btnShowKey.disabled = true;
-    btnShowKey.textContent = "Show Correct Answers";
-    hasChecked = false;
-  }
-
-  updateCounts();
-}
-
-/* Attach pointer handlers to a chip */
-function wireChipPointer(el){
-  el.addEventListener("pointerdown", (e)=>{
-    // only primary pointer
-    if (e.button !== undefined && e.button !== 0) return;
-    e.preventDefault(); // stop page scroll while dragging
-    startDrag(el, e);
-  }, { passive:false });
-}
-
-/* ---------------------------
-   App logic (same as yours)
-   --------------------------- */
-function makeChip(item){
-  const el = document.createElement("div");
-  el.className = "chip";
-  el.textContent = item.text;
-  el.dataset.id = item.id;
-  el.dataset.correct = item.cat;
-
-  wireChipPointer(el);
-  return el;
+function markTargets(on){
+  Object.values(zones).forEach(z=>{
+    z.classList.toggle("tapTarget", on);
+  });
 }
 
 function updateCounts(){
@@ -510,15 +438,90 @@ function buildAnswerKey(){
   });
 }
 
+/* Create chip that can be placed or returned */
+function makeChip(item){
+  const el = document.createElement("div");
+  el.className = "chip";
+  el.textContent = item.text;
+  el.dataset.id = item.id;
+  el.dataset.correct = item.cat;
+
+  el.addEventListener("click", () => {
+    // If clicked inside a zone: return to bank
+    const parentList = el.closest(".dropList");
+    if (parentList){
+      bank.appendChild(el); // MOVE back
+      el.classList.remove("correctChip","wrongChip","selected");
+      updateCounts();
+
+      // moving after check resets feedback
+      if (hasChecked){
+        clearZoneMarks();
+        clearChipMarks();
+        hideAnswerKey();
+        scorePill.classList.add("hidden");
+        btnShowKey.disabled = true;
+        btnShowKey.textContent = "Show Correct Answers";
+        hasChecked = false;
+      }
+
+      clearSelection();
+      return;
+    }
+
+    // If clicked in bank: select/unselect
+    if (selectedChip === el){
+      clearSelection();
+    } else {
+      clearSelection();
+      selectedChip = el;
+      selectedItemId = el.dataset.id;
+      el.classList.add("selected");
+      markTargets(true);
+    }
+  });
+
+  return el;
+}
+
+/* When user taps a category box after selecting a chip */
+function placeSelectedInto(category){
+  if (!selectedChip) return;
+
+  lists[category].appendChild(selectedChip); // MOVE
+  selectedChip.classList.remove("selected");
+  clearSelection();
+  updateCounts();
+
+  // moving after check resets feedback
+  if (hasChecked){
+    clearZoneMarks();
+    clearChipMarks();
+    hideAnswerKey();
+    scorePill.classList.add("hidden");
+    btnShowKey.disabled = true;
+    btnShowKey.textContent = "Show Correct Answers";
+    hasChecked = false;
+  }
+}
+
+/* Tap category zones */
+zoneTS.addEventListener("click", ()=> placeSelectedInto("TS"));
+zoneMI.addEventListener("click", ()=> placeSelectedInto("MI"));
+zoneMC.addEventListener("click", ()=> placeSelectedInto("MC"));
+
+/* Build / Reset */
 function build(){
   bank.innerHTML = "";
   listTS.innerHTML = "";
   listMI.innerHTML = "";
   listMC.innerHTML = "";
+
+  clearSelection();
   clearZoneMarks();
   clearChipMarks();
-
   hideAnswerKey();
+
   btnShowKey.disabled = true;
   btnShowKey.textContent = "Show Correct Answers";
   hasChecked = false;
@@ -534,13 +537,9 @@ function build(){
   buildAnswerKey();
 }
 
-/* Global pointer handlers */
-document.addEventListener("pointermove", (e)=> moveDrag(e), { passive:false });
-document.addEventListener("pointerup", (e)=> endDrag(e), { passive:true });
-document.addEventListener("pointercancel", (e)=> endDrag(e), { passive:true });
-
 /* Check: no auto-correct. Zone green only if fully correct. Individual chips show green/red stroke. */
 document.getElementById("check").onclick = () => {
+  clearSelection();
   clearZoneMarks();
   clearChipMarks();
   hideAnswerKey();
