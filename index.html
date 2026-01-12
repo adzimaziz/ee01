@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Drag & Drop – Brayton Cycle (Mobile Friendly)</title>
+<title>Drag & Drop – Brayton Cycle (Tap Label → Tap Box)</title>
 
 <style>
 :root{
@@ -54,13 +54,11 @@ header p{ margin:0; opacity:.85; font-size:13px; }
   border-bottom:1px solid rgba(255,255,255,.1);
   flex-wrap:wrap;
 }
-
 .btnRow{
   display:flex;
   gap:8px;
   flex-wrap:wrap;
 }
-
 button{
   padding:10px 14px;
   border-radius:12px;
@@ -71,11 +69,7 @@ button{
   color:white;
 }
 button.secondary{ background:rgba(255,255,255,.1); }
-
-.status{
-  font-size:13px;
-  opacity:.9;
-}
+.status{ font-size:13px; opacity:.9; }
 .hidden{ display:none !important; }
 
 /* Diagram */
@@ -113,7 +107,13 @@ button.secondary{ background:rgba(255,255,255,.1); }
 .dropzone.correct{ background:rgba(53,208,127,.25); border-color:var(--ok); }
 .dropzone.wrong{ background:rgba(255,90,106,.25); border-color:var(--bad); }
 
-/* Label bank (now below diagram) */
+/* Selected dropzone highlight */
+.dropzone.active{
+  outline:3px solid rgba(110,168,255,.7);
+  outline-offset:2px;
+}
+
+/* Bank */
 .bankHeader{
   padding:12px 12px 0;
   font-weight:800;
@@ -127,11 +127,40 @@ button.secondary{ background:rgba(255,255,255,.1); }
 .chip{
   padding:10px 14px;
   border-radius:999px;
-  background:rgba(255,255,255,.1);
-  cursor:grab;
-  font-weight:700;
+  background:rgba(255,255,255,.12);
+  cursor:pointer;
+  font-weight:800;
   user-select:none;
-  touch-action:none;
+  border:2px solid rgba(255,255,255,.18);
+}
+.chip.selected{
+  border-color: rgba(110,168,255,.85);
+  box-shadow: 0 10px 20px rgba(0,0,0,.25);
+}
+
+/* Small helper row */
+.helper{
+  padding:10px 12px 0;
+  font-size:12px;
+  opacity:.9;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.helper b{ color: #fff; }
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background: rgba(0,0,0,.18);
+  border: 1px solid rgba(255,255,255,.12);
+  padding:6px 10px;
+  border-radius:999px;
+}
+.pill .dot{
+  width:10px;height:10px;border-radius:50%;
+  background: rgba(110,168,255,.85);
 }
 
 /* Mobile tweaks */
@@ -146,11 +175,10 @@ button.secondary{ background:rgba(255,255,255,.1); }
 <body>
 <header>
   <h2>Label the Gas Turbine (Brayton Cycle)</h2>
-  <p>Drag labels into the boxes, then tap <b>Check</b>. Wrong/empty boxes will show the correct answer.</p>
+  <p><b>Tap a label</b> below, then <b>tap a box</b> in the diagram. Tap <b>Check</b> to mark.</p>
 </header>
 
 <main class="container">
-  <!-- Diagram + controls -->
   <section class="card">
     <div class="topbar">
       <div class="btnRow">
@@ -161,22 +189,27 @@ button.secondary{ background:rgba(255,255,255,.1); }
     </div>
 
     <div class="canvas">
-      <div class="diagram">
+      <div class="diagram" id="diagram">
         <img src="brayton.png" alt="Brayton cycle diagram">
 
-        <div class="dropzone" data-answer="Compressor" style="left:3%;top:36%;width:26%;height:30%">Drop here</div>
-        <div class="dropzone" data-answer="Combustion chamber" style="left:38%;top:8%;width:24%;height:22%">Drop here</div>
-        <div class="dropzone" data-answer="Turbine" style="left:70%;top:36%;width:26%;height:30%">Drop here</div>
-        <div class="dropzone" data-answer="Fresh air" style="left:10%;top:74%;width:18%;height:14%">Drop here</div>
-        <div class="dropzone" data-answer="Fuel" style="left:25%;top:1.5%;width:18%;height:12%">Drop here</div>
-        <div class="dropzone" data-answer="Exhaust gases" style="left:68%;top:70%;width:22%;height:16%">Drop here</div>
+        <div class="dropzone" data-answer="Compressor" style="left:3%;top:36%;width:26%;height:30%">Tap here</div>
+        <div class="dropzone" data-answer="Combustion chamber" style="left:38%;top:8%;width:24%;height:22%">Tap here</div>
+        <div class="dropzone" data-answer="Turbine" style="left:70%;top:36%;width:26%;height:30%">Tap here</div>
+        <div class="dropzone" data-answer="Fresh air" style="left:10%;top:74%;width:18%;height:14%">Tap here</div>
+        <div class="dropzone" data-answer="Fuel" style="left:25%;top:1.5%;width:18%;height:12%">Tap here</div>
+        <div class="dropzone" data-answer="Exhaust gases" style="left:68%;top:70%;width:22%;height:16%">Tap here</div>
+      </div>
+
+      <div class="helper">
+        <span class="pill"><span class="dot"></span> Step 1: Tap a label</span>
+        <span class="pill"><span class="dot"></span> Step 2: Tap a box</span>
+        <span class="pill">Tip: Tap a filled box to return its label</span>
       </div>
     </div>
   </section>
 
-  <!-- Labels (below) -->
   <section class="card">
-    <div class="bankHeader">Labels (Drag to the diagram)</div>
+    <div class="bankHeader">Labels (Tap one, then tap a box)</div>
     <div class="bank" id="bank"></div>
   </section>
 </main>
@@ -188,66 +221,102 @@ const labels = [
 ];
 
 const bank = document.getElementById("bank");
-const zones = document.querySelectorAll(".dropzone");
+const zones = [...document.querySelectorAll(".dropzone")];
 const scoreBox = document.getElementById("score");
 
-let draggedChip = null;
+let selectedChip = null;   // DOM element
+let selectedText = "";     // its text
 
 function makeChip(text){
-  const chip=document.createElement("div");
-  chip.className="chip";
-  chip.textContent=text;
-  chip.draggable=true;
-  chip.ondragstart=e=>{
-    draggedChip = chip;
-    e.dataTransfer.setData("text/plain", text);
-  };
+  const chip = document.createElement("div");
+  chip.className = "chip";
+  chip.textContent = text;
+  chip.dataset.text = text;
+
+  chip.addEventListener("click", () => {
+    // toggle selection
+    if (selectedChip === chip){
+      clearSelection();
+      return;
+    }
+    selectChip(chip);
+  });
+
   return chip;
 }
+
+function selectChip(chip){
+  // clear previous
+  document.querySelectorAll(".chip.selected").forEach(c => c.classList.remove("selected"));
+  selectedChip = chip;
+  selectedText = chip.dataset.text;
+  chip.classList.add("selected");
+}
+
+function clearSelection(){
+  if (selectedChip) selectedChip.classList.remove("selected");
+  selectedChip = null;
+  selectedText = "";
+}
+
+/* Put label into a zone (MOVE not copy) */
+function placeIntoZone(zone, text){
+  // If zone already filled, return old value to bank
+  if (zone.dataset.value){
+    bank.appendChild(makeChip(zone.dataset.value));
+  }
+
+  zone.textContent = text;
+  zone.dataset.value = text;
+
+  // remove chosen chip from bank (MOVE)
+  if (selectedChip){
+    selectedChip.remove();
+  }
+
+  clearSelection();
+}
+
+/* Tap zone behaviour */
+zones.forEach(zone => {
+  zone.addEventListener("click", () => {
+    // if user has selected a label -> place it
+    if (selectedText){
+      placeIntoZone(zone, selectedText);
+      return;
+    }
+
+    // if no label selected & zone has value -> return to bank
+    if (zone.dataset.value){
+      bank.appendChild(makeChip(zone.dataset.value));
+      zone.dataset.value = "";
+      zone.textContent = "Tap here";
+      zone.classList.remove("correct","wrong");
+    }
+  });
+});
 
 /* Build / Reset */
 function build(){
   bank.innerHTML="";
-  labels
-    .slice()
-    .sort(()=>Math.random()-0.5)
-    .forEach(t => bank.appendChild(makeChip(t)));
+  labels.slice().sort(()=>Math.random()-0.5).forEach(t => bank.appendChild(makeChip(t)));
 
   zones.forEach(z=>{
-    z.textContent="Drop here";
+    z.textContent="Tap here";
     z.dataset.value="";
-    z.className="dropzone";
+    z.classList.remove("correct","wrong","active");
   });
 
+  clearSelection();
   scoreBox.classList.add("hidden");
 }
 
-/* Drop handling (MOVE, not copy) */
-zones.forEach(zone=>{
-  zone.ondragover=e=>e.preventDefault();
-
-  zone.ondrop=e=>{
-    e.preventDefault();
-    if(!draggedChip) return;
-
-    // If zone already filled, return old value to bank
-    if(zone.dataset.value){
-      bank.appendChild(makeChip(zone.dataset.value));
-    }
-
-    zone.textContent = draggedChip.textContent;
-    zone.dataset.value = draggedChip.textContent;
-
-    draggedChip.remove();   // MOVE
-    draggedChip = null;
-  };
-});
-
 /* Check: mark + auto reveal correct answers */
 document.getElementById("check").onclick=()=>{
+  clearSelection();
+
   let correct=0;
   zones.forEach(z=>{
-    // reset mark classes first
     z.classList.remove("correct","wrong");
 
     if(z.dataset.value === z.dataset.answer){
