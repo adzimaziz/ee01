@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Drag & Drop – Mass Flow Energy Content (Mobile Friendly)</title>
+
+<style>
+:root{
+  --bg:#0b1220;
+  --ok:#35d07f;
+  --bad:#ff5a6a;
+  --accent:#6ea8ff;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family: system-ui, sans-serif;
+  background: radial-gradient(1200px 600px at 30% 10%, #1a2a55 0%, var(--bg) 60%);
+  color:#eaf1ff;
+}
+
+header{
+  max-width:1100px;
+  margin:auto;
+  padding:18px 14px 10px;
+}
+header h2{ margin:0 0 6px; font-size:18px; }
+header p{ margin:0; opacity:.85; font-size:13px; }
+
+.container{
+  max-width:1100px;
+  margin:auto;
+  padding:0 14px 22px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.card{
+  border-radius:16px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);
+  overflow:hidden;
+}
+
+.topbar{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px;
+  border-bottom:1px solid rgba(255,255,255,.1);
+  flex-wrap:wrap;
+}
+
+.btnRow{ display:flex; gap:8px; flex-wrap:wrap; }
+
+button{
+  padding:10px 14px;
+  border-radius:12px;
+  border:0;
+  cursor:pointer;
+  font-weight:700;
+  background:rgba(110,168,255,.25);
+  color:white;
+}
+button.secondary{ background:rgba(255,255,255,.1); }
+
+.status{ font-size:13px; opacity:.9; }
+.hidden{ display:none !important; }
+
+.canvas{ padding:12px; }
+.diagram{
+  position:relative;
+  width:100%;
+  aspect-ratio: 1 / 1;  /* this diagram is more square */
+  background:white;
+  border-radius:12px;
+  overflow:hidden;
+}
+.diagram img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+
+.dropzone{
+  position:absolute;
+  border:2px dashed rgba(110,168,255,.6);
+  background:rgba(110,168,255,.12);
+  border-radius:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:black;
+  font-weight:800;
+  font-size:12px;
+  text-align:center;
+  padding:6px;
+}
+.dropzone.correct{ background:rgba(53,208,127,.25); border-color:var(--ok); }
+.dropzone.wrong{ background:rgba(255,90,106,.25); border-color:var(--bad); }
+
+.bankHeader{ padding:12px 12px 0; font-weight:800; }
+.bank{
+  padding:12px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+.chip{
+  padding:10px 14px;
+  border-radius:999px;
+  background:rgba(255,255,255,.1);
+  cursor:grab;
+  font-weight:700;
+  user-select:none;
+  touch-action:none;
+}
+
+@media (max-width: 480px){
+  header h2{ font-size:16px; }
+  .dropzone{ font-size:11px; }
+  button{ padding:10px 12px; }
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h2>Calculation of Energy Content of a Mass Flow Rate</h2>
+  <p>Drag labels into the boxes, then tap <b>Check</b>. Wrong/empty boxes will show the correct answer.</p>
+</header>
+
+<main class="container">
+  <section class="card">
+    <div class="topbar">
+      <div class="btnRow">
+        <button id="check">Check</button>
+        <button id="reset" class="secondary">Reset</button>
+      </div>
+      <div class="status hidden" id="score"></div>
+    </div>
+
+    <div class="canvas">
+      <div class="diagram">
+        <!-- ✅ Put your image in the same folder and name it: massflow.png -->
+        <img src="massflow.png" alt="Energy content of a mass flow diagram">
+
+        <!-- Dropzones placed over the grey boxes in your image -->
+        <!-- Left box -->
+        <div class="dropzone" data-answer="Energy content of a mass flow"
+             style="left:5%; top:36%; width:22%; height:28%;">Drop here</div>
+
+        <!-- Middle top -->
+        <div class="dropzone" data-answer="Mass flow rate"
+             style="left:34%; top:8%; width:28%; height:24%;">Drop here</div>
+
+        <!-- Middle bottom -->
+        <div class="dropzone" data-answer="Enthalpy of mass flow rate"
+             style="left:35%; top:58%; width:28%; height:28%;">Drop here</div>
+
+        <!-- Right column -->
+        <div class="dropzone" data-answer="Temperature"
+             style="left:72%; top:34%; width:24%; height:14%;">Drop here</div>
+
+        <div class="dropzone" data-answer="Pressure"
+             style="left:72%; top:52%; width:24%; height:14%;">Drop here</div>
+
+        <div class="dropzone" data-answer="Steam content"
+             style="left:72%; top:70%; width:24%; height:16%;">Drop here</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="bankHeader">Labels (Drag to the diagram)</div>
+    <div class="bank" id="bank"></div>
+  </section>
+</main>
+
+<script>
+const labels = [
+  "Energy content of a mass flow",
+  "Mass flow rate",
+  "Enthalpy of mass flow rate",
+  "Temperature",
+  "Pressure",
+  "Steam content"
+];
+
+const bank = document.getElementById("bank");
+const zones = document.querySelectorAll(".dropzone");
+const scoreBox = document.getElementById("score");
+
+let draggedChip = null;
+
+function makeChip(text){
+  const chip = document.createElement("div");
+  chip.className = "chip";
+  chip.textContent = text;
+  chip.draggable = true;
+  chip.ondragstart = (e) => {
+    draggedChip = chip;
+    e.dataTransfer.setData("text/plain", text);
+  };
+  return chip;
+}
+
+function build(){
+  bank.innerHTML = "";
+  labels
+    .slice()
+    .sort(() => Math.random() - 0.5)
+    .forEach(t => bank.appendChild(makeChip(t)));
+
+  zones.forEach(z=>{
+    z.textContent = "Drop here";
+    z.dataset.value = "";
+    z.classList.remove("correct","wrong");
+  });
+
+  scoreBox.classList.add("hidden");
+}
+
+zones.forEach(zone=>{
+  zone.ondragover = (e) => e.preventDefault();
+  zone.ondrop = (e) => {
+    e.preventDefault();
+    if(!draggedChip) return;
+
+    // If zone already filled, return old value to bank
+    if(zone.dataset.value){
+      bank.appendChild(makeChip(zone.dataset.value));
+    }
+
+    // MOVE dragged chip into this zone
+    zone.textContent = draggedChip.textContent;
+    zone.dataset.value = draggedChip.textContent;
+
+    draggedChip.remove();
+    draggedChip = null;
+
+    // clear marking while working
+    zone.classList.remove("correct","wrong");
+  };
+});
+
+document.getElementById("check").onclick = () => {
+  let correct = 0;
+
+  zones.forEach(z=>{
+    z.classList.remove("correct","wrong");
+
+    if(z.dataset.value === z.dataset.answer){
+      z.classList.add("correct");
+      correct++;
+    }else{
+      z.classList.add("wrong");
+      z.textContent = z.dataset.answer; // auto reveal
+    }
+  });
+
+  scoreBox.textContent = `Score: ${correct} / ${labels.length}`;
+  scoreBox.classList.remove("hidden");
+};
+
+document.getElementById("reset").onclick = build;
+
+build();
+</script>
+</body>
+</html>
