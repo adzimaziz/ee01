@@ -1,530 +1,215 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Drag & Drop – Label the Gas Turbine (Brayton Cycle)</title>
-  <style>
-    :root{
-      --bg:#0b1220;
-      --panel:#111a2e;
-      --card:#141f38;
-      --text:#eaf1ff;
-      --muted:#a9b7d6;
-      --ok:#35d07f;
-      --bad:#ff5a6a;
-      --accent:#6ea8ff;
-      --shadow: 0 10px 30px rgba(0,0,0,.35);
-      --radius: 16px;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: radial-gradient(1200px 600px at 30% 10%, #1a2a55 0%, var(--bg) 60%);
-      color:var(--text);
-    }
-    header{
-      padding:20px 16px 10px;
-      max-width:1100px;
-      margin:0 auto;
-    }
-    h1{
-      margin:0 0 6px;
-      font-size:20px;
-      font-weight:800;
-      letter-spacing:.2px;
-    }
-    p{
-      margin:0;
-      color:var(--muted);
-      line-height:1.35;
-      font-size:14px;
-    }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Drag & Drop – Brayton Cycle</title>
 
-    .wrap{
-      max-width:1100px;
-      margin: 10px auto 28px;
-      padding: 0 16px;
-      display:grid;
-      grid-template-columns: 1.2fr .8fr;
-      gap:14px;
-    }
+<style>
+:root{
+  --bg:#0b1220;
+  --ok:#35d07f;
+  --bad:#ff5a6a;
+  --accent:#6ea8ff;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family: system-ui, sans-serif;
+  background: radial-gradient(1200px 600px at 30% 10%, #1a2a55 0%, var(--bg) 60%);
+  color:#eaf1ff;
+}
 
-    .board{
-      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
+header{
+  max-width:1100px;
+  margin:auto;
+  padding:20px 16px 10px;
+}
 
-    .boardTop{
-      padding:12px 12px 10px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      background: rgba(0,0,0,.15);
-      border-bottom: 1px solid rgba(255,255,255,.08);
-      gap:10px;
-      flex-wrap:wrap;
-    }
+.wrap{
+  max-width:1100px;
+  margin:auto;
+  padding:0 16px 28px;
+  display:grid;
+  grid-template-columns:1.2fr .8fr;
+  gap:14px;
+}
 
-    .btns{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-    }
+.board, .side{
+  border-radius:16px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);
+}
 
-    button{
-      border:0;
-      cursor:pointer;
-      padding:10px 12px;
-      border-radius: 12px;
-      background: rgba(255,255,255,.08);
-      color:var(--text);
-      font-weight:700;
-      font-size:13px;
-      transition: transform .05s ease, background .2s ease;
-    }
-    button:hover{ background: rgba(255,255,255,.13); }
-    button:active{ transform: translateY(1px); }
-    button.primary{ background: rgba(110,168,255,.25); }
-    button.primary:hover{ background: rgba(110,168,255,.35); }
+.boardTop{
+  display:flex;
+  justify-content:space-between;
+  padding:12px;
+  border-bottom:1px solid rgba(255,255,255,.1);
+}
 
-    .status{
-      font-size:13px;
-      color:var(--muted);
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap:wrap;
-    }
-    .pill{
-      padding:6px 10px;
-      border-radius:999px;
-      background: rgba(255,255,255,.07);
-      border: 1px solid rgba(255,255,255,.09);
-      color:var(--text);
-      font-weight:800;
-    }
-    .hidden{ display:none !important; }
+button{
+  padding:10px 14px;
+  border-radius:12px;
+  border:0;
+  cursor:pointer;
+  font-weight:700;
+  background:rgba(110,168,255,.25);
+  color:white;
+}
 
-    .canvas{
-      position:relative;
-      padding:12px;
-      background: rgba(0,0,0,.10);
-    }
+button.secondary{
+  background:rgba(255,255,255,.1);
+}
 
-    .diagram{
-      position:relative;
-      width:100%;
-      aspect-ratio: 16 / 9;
-      border-radius: 14px;
-      overflow:hidden;
-      border:1px solid rgba(255,255,255,.10);
-      background: #0a0f1c;
-    }
-    .diagram img{
-      position:absolute;
-      inset:0;
-      width:100%;
-      height:100%;
-      object-fit:contain;
-      background:#fff;
-    }
+.status{
+  font-size:14px;
+}
 
-    /* Drop zones (hotspots) */
-    .dropzone{
-      position:absolute;
-      border-radius: 14px;
-      border:2px dashed rgba(110,168,255,.55);
-      background: rgba(110,168,255,.12);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      padding:8px;
-      color:#000; /* black text */
-      font-weight:800;
-      font-size:12px;
-      line-height:1.1;
-      backdrop-filter: blur(2px);
-      transition: background .2s ease, border-color .2s ease;
-      user-select:none;
-    }
-    .dropzone.over{ background: rgba(110,168,255,.22); border-color: rgba(110,168,255,.9); }
-    .dropzone.filled{ border-style: solid; background: rgba(255,255,255,.06); }
-    .dropzone.correct{ border-color: rgba(53,208,127,.95); background: rgba(53,208,127,.16); }
-    .dropzone.wrong{ border-color: rgba(255,90,106,.95); background: rgba(255,90,106,.14); }
+.hidden{display:none}
 
-    /* Right panel */
-    .side{
-      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-      display:flex;
-      flex-direction:column;
-    }
-    .sideTop{
-      padding:12px;
-      background: rgba(0,0,0,.15);
-      border-bottom: 1px solid rgba(255,255,255,.08);
-    }
-    .sideTop h2{
-      margin:0 0 6px;
-      font-size:15px;
-      letter-spacing:.2px;
-    }
-    .hint{
-      margin:0;
-      font-size:13px;
-      color:var(--muted);
-    }
+.canvas{padding:12px}
+.diagram{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+  background:white;
+  border-radius:12px;
+}
+.diagram img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
 
-    .bank{
-      padding:12px;
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      align-content:flex-start;
-      min-height: 180px;
-    }
+.dropzone{
+  position:absolute;
+  border:2px dashed rgba(110,168,255,.6);
+  background:rgba(110,168,255,.12);
+  border-radius:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:black;
+  font-weight:800;
+  font-size:12px;
+}
 
-    .chip{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:10px 12px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(255,255,255,.12);
-      box-shadow: 0 8px 18px rgba(0,0,0,.18);
-      color:var(--text);
-      font-weight:800;
-      font-size:13px;
-      cursor:grab;
-      user-select:none;
-      touch-action:none;
-    }
-    .chip:active{ cursor:grabbing; }
-    .chip .dot{
-      width:10px; height:10px; border-radius:99px;
-      background: rgba(110,168,255,.9);
-      box-shadow: 0 0 0 4px rgba(110,168,255,.15);
-      flex:none;
-    }
+.dropzone.correct{background:rgba(53,208,127,.25);border-color:var(--ok)}
+.dropzone.wrong{background:rgba(255,90,106,.25);border-color:var(--bad)}
 
-    .footer{
-      padding:12px;
-      border-top: 1px solid rgba(255,255,255,.08);
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.35;
-    }
+.sideTop{padding:12px;border-bottom:1px solid rgba(255,255,255,.1)}
+.bank{
+  padding:12px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
 
-    @media (max-width: 900px){
-      .wrap{ grid-template-columns: 1fr; }
-    }
-  </style>
+.chip{
+  padding:10px 14px;
+  border-radius:999px;
+  background:rgba(255,255,255,.1);
+  cursor:grab;
+  font-weight:700;
+}
+</style>
 </head>
+
 <body>
-  <header>
-    <h1>Drag & Drop: Label the Gas Turbine (Brayton Cycle) Diagram</h1>
-    <p>Drag labels from the right panel onto the correct hotspots. Then press <b>Check</b>.</p>
-  </header>
+<header>
+  <h2>Label the Gas Turbine (Brayton Cycle)</h2>
+  <p>Drag labels, then click <b>Check</b>.</p>
+</header>
 
-  <main class="wrap">
-    <section class="board">
-      <div class="boardTop">
-        <div class="btns">
-          <button class="primary" id="btnCheck">Check</button>
-          <button id="btnReset">Reset</button>
-          <button id="btnShow">Show Answers</button>
-        </div>
-        <div class="status">
-          <!-- hidden at start; shown only after Check / Show Answers -->
-          <span class="pill hidden" id="scorePill">Score: 0 / 6</span>
-          <span id="msg">Place all labels, then click Check.</span>
-        </div>
-      </div>
+<main class="wrap">
+<section class="board">
+  <div class="boardTop">
+    <div>
+      <button id="check">Check</button>
+      <button id="reset" class="secondary">Reset</button>
+    </div>
+    <div class="status hidden" id="score"></div>
+  </div>
 
-      <div class="canvas">
-        <div class="diagram" id="diagram">
-          <!-- Put your diagram image in same folder and name it: brayton.png -->
-          <img src="brayton.png" alt="Gas turbine (Brayton cycle) diagram" />
+  <div class="canvas">
+    <div class="diagram">
+      <img src="brayton.png">
 
-          <!-- Drop zones (ONLY text labels, no numbers) -->
-          <div class="dropzone" data-accept="Compressor"
-               style="left:3%; top:36%; width:26%; height:30%;">Drop here</div>
+      <div class="dropzone" data-answer="Compressor" style="left:3%;top:36%;width:26%;height:30%">Drop here</div>
+      <div class="dropzone" data-answer="Combustion chamber" style="left:38%;top:8%;width:24%;height:22%">Drop here</div>
+      <div class="dropzone" data-answer="Turbine" style="left:70%;top:36%;width:26%;height:30%">Drop here</div>
+      <div class="dropzone" data-answer="Fresh air" style="left:10%;top:74%;width:18%;height:14%">Drop here</div>
+      <div class="dropzone" data-answer="Fuel" style="left:25%;top:1.5%;width:18%;height:12%">Drop here</div>
+      <div class="dropzone" data-answer="Exhaust gases" style="left:68%;top:70%;width:22%;height:16%">Drop here</div>
+    </div>
+  </div>
+</section>
 
-          <div class="dropzone" data-accept="Combustion chamber"
-               style="left:38%; top:8%; width:24%; height:22%;">Drop here</div>
+<aside class="side">
+  <div class="sideTop"><b>Labels</b></div>
+  <div class="bank" id="bank"></div>
+</aside>
+</main>
 
-          <div class="dropzone" data-accept="Turbine"
-               style="left:70%; top:36%; width:26%; height:30%;">Drop here</div>
+<script>
+const labels = [
+  "Compressor","Combustion chamber","Turbine",
+  "Fresh air","Fuel","Exhaust gases"
+];
 
-          <div class="dropzone" data-accept="Fresh air"
-               style="left:10%; top:74%; width:18%; height:14%;">Drop here</div>
+const bank = document.getElementById("bank");
+const zones = document.querySelectorAll(".dropzone");
+const scoreBox = document.getElementById("score");
 
-          <div class="dropzone" data-accept="Fuel"
-               style="left:25%; top:1.5%; width:18%; height:12%;">Drop here</div>
+function build(){
+  bank.innerHTML="";
+  labels.sort(()=>Math.random()-0.5).forEach(t=>{
+    const c=document.createElement("div");
+    c.className="chip";
+    c.textContent=t;
+    c.draggable=true;
+    c.ondragstart=e=>e.dataTransfer.setData("text",t);
+    bank.appendChild(c);
+  });
+  zones.forEach(z=>{
+    z.textContent="Drop here";
+    z.dataset.value="";
+    z.className="dropzone";
+  });
+  scoreBox.classList.add("hidden");
+}
 
-          <div class="dropzone" data-accept="Exhaust gases"
-               style="left:68%; top:70%; width:22%; height:16%;">Drop here</div>
-        </div>
-      </div>
-    </section>
+zones.forEach(z=>{
+  z.ondragover=e=>e.preventDefault();
+  z.ondrop=e=>{
+    e.preventDefault();
+    const v=e.dataTransfer.getData("text");
+    z.textContent=v;
+    z.dataset.value=v;
+  };
+});
 
-    <aside class="side">
-      <div class="sideTop">
-        <h2>Labels</h2>
-        <p class="hint">Drag each label onto the correct place.</p>
-      </div>
-
-      <div class="bank" id="bank"></div>
-
-      <div class="footer">
-        Tip: If a label is wrong, it will turn red after you press <b>Check</b>.
-        You can still drag it again to fix it.
-      </div>
-    </aside>
-  </main>
-
-  <script>
-    // Labels (numbers removed)
-    const LABELS = [
-      "Compressor",
-      "Combustion chamber",
-      "Turbine",
-      "Fresh air",
-      "Fuel",
-      "Exhaust gases"
-    ];
-
-    const SCORE_OUT_OF = 6;
-    let showAnswers = false;
-
-    function shuffle(arr){
-      const a = [...arr];
-      for (let i=a.length-1; i>0; i--){
-        const j = Math.floor(Math.random()*(i+1));
-        [a[i],a[j]] = [a[j],a[i]];
-      }
-      return a;
+document.getElementById("check").onclick=()=>{
+  let correct=0;
+  zones.forEach(z=>{
+    if(z.dataset.value===z.dataset.answer){
+      z.classList.add("correct");
+      correct++;
+    }else{
+      z.classList.add("wrong");
+      z.textContent=z.dataset.answer; // ✅ auto show correct answer
     }
+  });
+  scoreBox.textContent=`Score: ${correct} / ${labels.length}`;
+  scoreBox.classList.remove("hidden");
+};
 
-    function createChip(text){
-      const chip = document.createElement("div");
-      chip.className = "chip";
-      chip.draggable = true;
-      chip.dataset.label = text;
-      chip.innerHTML = `<span class="dot"></span><span>${text}</span>`;
-      chip.addEventListener("dragstart", (e)=>{
-        e.dataTransfer.setData("text/plain", text);
-        try{ e.dataTransfer.setDragImage(chip, 10, 10); }catch(_){}
-      });
-      return chip;
-    }
+document.getElementById("reset").onclick=build;
 
-    function buildBank(){
-      const bank = document.getElementById("bank");
-      bank.innerHTML = "";
-      shuffle(LABELS).forEach(t => bank.appendChild(createChip(t)));
-    }
-
-    function clearMarks(){
-      document.querySelectorAll(".dropzone").forEach(z=>{
-        z.classList.remove("correct","wrong");
-      });
-    }
-
-    function dropzoneSetText(zone){
-      const placed = zone.dataset.placed || "";
-      zone.textContent = placed ? placed : "Drop here";
-    }
-
-    function setMessage(text){
-      document.getElementById("msg").textContent = text;
-    }
-
-    function calculateScore(){
-      const zones = [...document.querySelectorAll(".dropzone")];
-      let correct = 0;
-      zones.forEach(z=>{
-        const need = z.dataset.accept;
-        const got  = z.dataset.placed || "";
-        if (got && got === need) correct++;
-      });
-      return correct;
-    }
-
-    function showScore(score){
-      const pill = document.getElementById("scorePill");
-      pill.textContent = `Score: ${score} / ${SCORE_OUT_OF}`;
-      pill.classList.remove("hidden");
-    }
-
-    function hideScore(){
-      document.getElementById("scorePill").classList.add("hidden");
-    }
-
-    function setupDropzones(){
-      document.querySelectorAll(".dropzone").forEach(zone=>{
-        zone.addEventListener("dragover", (e)=>{
-          e.preventDefault();
-          zone.classList.add("over");
-        });
-        zone.addEventListener("dragleave", ()=>{
-          zone.classList.remove("over");
-        });
-        zone.addEventListener("drop", (e)=>{
-          e.preventDefault();
-          zone.classList.remove("over");
-          clearMarks();
-
-          const label = e.dataTransfer.getData("text/plain");
-          if (!label) return;
-
-          // If zone already has a label, return it to bank
-          const prev = zone.dataset.placed;
-          if (prev){
-            returnLabelToBank(prev);
-          }
-
-          // Place new label
-          zone.dataset.placed = label;
-          zone.classList.add("filled");
-          dropzoneSetText(zone);
-
-          // Remove chip from bank
-          removeChipFromBank(label);
-
-          // Score only appears after Check
-          setMessage("Placed. Click Check when ready.");
-        });
-      });
-    }
-
-    function removeChipFromBank(label){
-      const bank = document.getElementById("bank");
-      const chip = [...bank.querySelectorAll(".chip")].find(c => c.dataset.label === label);
-      if (chip) chip.remove();
-    }
-
-    function returnLabelToBank(label){
-      const bank = document.getElementById("bank");
-      const exists = [...bank.querySelectorAll(".chip")].some(c => c.dataset.label === label);
-      if (!exists) bank.appendChild(createChip(label));
-    }
-
-    function setupBankDrop(){
-      const bank = document.getElementById("bank");
-      bank.addEventListener("dragover", (e)=> e.preventDefault());
-      bank.addEventListener("drop", (e)=>{
-        e.preventDefault();
-        clearMarks();
-
-        const label = e.dataTransfer.getData("text/plain");
-        if (!label) return;
-
-        // Clear this label from any zone
-        const zone = [...document.querySelectorAll(".dropzone")]
-          .find(z => (z.dataset.placed || "") === label);
-
-        if (zone){
-          delete zone.dataset.placed;
-          zone.classList.remove("filled");
-          dropzoneSetText(zone);
-        }
-
-        returnLabelToBank(label);
-        setMessage("Returned. Click Check when ready.");
-      });
-    }
-
-    document.getElementById("btnCheck").addEventListener("click", ()=>{
-      const zones = [...document.querySelectorAll(".dropzone")];
-      let allPlaced = true;
-
-      zones.forEach(z=>{
-        const need = z.dataset.accept;
-        const got  = z.dataset.placed || "";
-        if (!got) allPlaced = false;
-
-        z.classList.remove("correct","wrong");
-        if (got){
-          if (got === need) z.classList.add("correct");
-          else z.classList.add("wrong");
-        }
-      });
-
-      const score = calculateScore();
-      showScore(score);
-
-      if (!allPlaced){
-        setMessage("Some spots are still empty. Fill them all (or press Show Answers).");
-      } else if (score === SCORE_OUT_OF){
-        setMessage("Perfect! ✅ All correct.");
-      } else {
-        setMessage("Checked. Fix the red ones and check again.");
-      }
-    });
-
-    document.getElementById("btnReset").addEventListener("click", ()=>{
-      showAnswers = false;
-      document.getElementById("btnShow").textContent = "Show Answers";
-      clearMarks();
-      setMessage("Reset done. Place labels, then click Check.");
-      hideScore();
-
-      document.querySelectorAll(".dropzone").forEach(z=>{
-        delete z.dataset.placed;
-        z.classList.remove("filled","correct","wrong");
-        dropzoneSetText(z);
-      });
-
-      buildBank();
-    });
-
-    document.getElementById("btnShow").addEventListener("click", ()=>{
-      showAnswers = !showAnswers;
-      const btn = document.getElementById("btnShow");
-      btn.textContent = showAnswers ? "Hide Answers" : "Show Answers";
-      clearMarks();
-
-      if (showAnswers){
-        document.getElementById("bank").innerHTML = "";
-        document.querySelectorAll(".dropzone").forEach(z=>{
-          z.dataset.placed = z.dataset.accept;
-          z.classList.add("filled","correct");
-          dropzoneSetText(z);
-        });
-
-        showScore(SCORE_OUT_OF);
-        setMessage("Answers shown. Press Hide Answers or Reset to try again.");
-      } else {
-        document.querySelectorAll(".dropzone").forEach(z=>{
-          delete z.dataset.placed;
-          z.classList.remove("filled","correct","wrong");
-          dropzoneSetText(z);
-        });
-
-        buildBank();
-        hideScore();
-        setMessage("Answers hidden. Place labels, then click Check.");
-      }
-    });
-
-    (function init(){
-      document.querySelectorAll(".dropzone").forEach(dropzoneSetText);
-      buildBank();
-      setupDropzones();
-      setupBankDrop();
-      hideScore();
-    })();
-  </script>
+build();
+</script>
 </body>
 </html>
