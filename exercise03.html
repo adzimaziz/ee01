@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Drag & Drop – Categorize Points (Mobile Friendly)</title>
+
+<style>
+:root{
+  --bg:#0b1220;
+  --ok:#35d07f;
+  --bad:#ff5a6a;
+  --accent:#6ea8ff;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family: system-ui, sans-serif;
+  background: radial-gradient(1200px 600px at 30% 10%, #1a2a55 0%, var(--bg) 60%);
+  color:#eaf1ff;
+}
+
+header{
+  max-width:1100px;
+  margin:auto;
+  padding:18px 14px 10px;
+}
+header h2{ margin:0 0 6px; font-size:18px; }
+header p{ margin:0; opacity:.85; font-size:13px; }
+
+.container{
+  max-width:1100px;
+  margin:auto;
+  padding:0 14px 22px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.card{
+  border-radius:16px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);
+  overflow:hidden;
+}
+
+.topbar{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px;
+  border-bottom:1px solid rgba(255,255,255,.1);
+  flex-wrap:wrap;
+}
+.btnRow{ display:flex; gap:8px; flex-wrap:wrap; }
+
+button{
+  padding:10px 14px;
+  border-radius:12px;
+  border:0;
+  cursor:pointer;
+  font-weight:700;
+  background:rgba(110,168,255,.25);
+  color:white;
+}
+button.secondary{ background:rgba(255,255,255,.1); }
+
+.status{ font-size:13px; opacity:.9; }
+.hidden{ display:none !important; }
+
+.canvas{ padding:12px; }
+.diagram{
+  position:relative;
+  width:100%;
+  aspect-ratio: 16 / 9;
+  background:white;
+  border-radius:12px;
+  overflow:hidden;
+}
+.diagram img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+
+/* Big “category” zones (the 3 boxes on the right) */
+.dropzone{
+  position:absolute;
+  border:2px dashed rgba(110,168,255,.6);
+  background:rgba(110,168,255,.12);
+  border-radius:14px;
+  color:black;
+  font-weight:900;
+  font-size:13px;
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.dropzoneHeader{
+  font-weight:900;
+  font-size:13px;
+  color:#0b2a6b;
+}
+.dropzoneList{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height: 70px;
+}
+
+/* Chips (points) can sit inside lists */
+.chip{
+  background:rgba(255,255,255,.92);
+  color:#0b1220;
+  border:1px solid rgba(0,0,0,.12);
+  border-radius:12px;
+  padding:10px 10px;
+  font-weight:700;
+  font-size:13px;
+  line-height:1.25;
+  cursor:grab;
+  user-select:none;
+  touch-action:none;
+}
+
+.dropzone.correct{ background:rgba(53,208,127,.18); border-color:var(--ok); }
+.dropzone.wrong{ background:rgba(255,90,106,.18); border-color:var(--bad); }
+
+/* Bank */
+.bankHeader{ padding:12px 12px 0; font-weight:800; }
+.bank{
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.hint{
+  font-size:12px;
+  opacity:.85;
+  padding:0 12px 10px;
+}
+
+@media (max-width: 560px){
+  header h2{ font-size:16px; }
+  .chip{ font-size:12px; }
+  .diagram{ aspect-ratio: 4 / 5; } /* better on phone */
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h2>Categorize the Points</h2>
+  <p>Drag each point into the correct box. Then tap <b>Check</b>. Wrong/missing items will show the correct category.</p>
+</header>
+
+<main class="container">
+
+  <section class="card">
+    <div class="topbar">
+      <div class="btnRow">
+        <button id="check">Check</button>
+        <button id="reset" class="secondary">Reset</button>
+      </div>
+      <div class="status hidden" id="score"></div>
+    </div>
+
+    <div class="canvas">
+      <div class="diagram">
+        <!-- ✅ Save your image in the same folder as index.html and name it: framework.png -->
+        <img src="framework.png" alt="Technical system / Management infrastructure / Mindsets and capabilities">
+
+        <!-- 3 BIG drop areas (place anywhere inside each box) -->
+        <div class="dropzone" data-category="TS"
+             style="left:47%; top:6%; width:50%; height:28%;">
+          <div class="dropzoneHeader">Technical system</div>
+          <div class="dropzoneList" data-drop-list="TS"></div>
+        </div>
+
+        <div class="dropzone" data-category="MI"
+             style="left:47%; top:37%; width:50%; height:31%;">
+          <div class="dropzoneHeader">Management infrastructure</div>
+          <div class="dropzoneList" data-drop-list="MI"></div>
+        </div>
+
+        <div class="dropzone" data-category="MC"
+             style="left:47%; top:71%; width:50%; height:23%;">
+          <div class="dropzoneHeader">Mindsets and capabilities</div>
+          <div class="dropzoneList" data-drop-list="MC"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="bankHeader">Points (Drag into boxes)</div>
+    <div class="hint">Move (not copy): once you place a point, it disappears from the list below. You can re-drag it to another box.</div>
+    <div class="bank" id="bank"></div>
+  </section>
+
+</main>
+
+<script>
+/**
+ * Workflow rules:
+ * - “Move” behavior: chip moves from bank -> a category list, and can be moved between category lists.
+ * - Flexible within a category: any correct items can be placed anywhere inside that category box.
+ * - Check: counts item correct if it is inside correct category list.
+ * - Auto-reveal: any missing/incorrect item is placed into the correct category list on Check.
+ */
+
+const ITEMS = [
+  // Technical system (TS)
+  {
+    id: "ts1",
+    text: "Mapping energy flow from coal yard to transformer (end-to-end) via theoretical limit analysis",
+    cat: "TS"
+  },
+  {
+    id: "ts2",
+    text: "Identification of losses via comparison with plant design and state-of-the-art power plants",
+    cat: "TS"
+  },
+  {
+    id: "ts3",
+    text: "Development of measures throughout four main operation areas (primary energy, boiler, turbine, auxiliaries)",
+    cat: "TS"
+  },
+
+  // Management infrastructure (MI)
+  {
+    id: "mi1",
+    text: "Build full energy efficiency KPI methodology and targets (broken down to key plant areas & leading KPIs)",
+    cat: "MI"
+  },
+  {
+    id: "mi2",
+    text: "Include energy efficiency in shift handover meetings, and in station & fleet management meetings",
+    cat: "MI"
+  },
+  {
+    id: "mi3",
+    text: "Create dedicated responsibilities by including energy efficiency in power station manager performance contract",
+    cat: "MI"
+  },
+
+  // Mindsets and capabilities (MC)
+  {
+    id: "mc1",
+    text: "Building awareness and capabilities from top/middle management down to shop floor by involving the whole organization",
+    cat: "MC"
+  }
+];
+
+const bank = document.getElementById("bank");
+const scoreBox = document.getElementById("score");
+
+const listTS = document.querySelector('[data-drop-list="TS"]');
+const listMI = document.querySelector('[data-drop-list="MI"]');
+const listMC = document.querySelector('[data-drop-list="MC"]');
+const lists = { TS:listTS, MI:listMI, MC:listMC };
+
+let draggedEl = null;
+let draggedId = null;
+
+/* ---------- Helpers ---------- */
+function makeChip(item){
+  const el = document.createElement("div");
+  el.className = "chip";
+  el.textContent = item.text;
+  el.draggable = true;
+  el.dataset.id = item.id;
+  el.dataset.cat = item.cat; // correct category
+  el.ondragstart = (e) => {
+    draggedEl = el;
+    draggedId = item.id;
+    e.dataTransfer.setData("text/plain", item.id);
+  };
+  return el;
+}
+
+function clearZoneMarks(){
+  document.querySelectorAll(".dropzone").forEach(z=>{
+    z.classList.remove("correct","wrong");
+  });
+}
+
+function allCurrentPlacements(){
+  // returns map id -> currentListCat ("TS"/"MI"/"MC"/"BANK")
+  const pos = {};
+  ITEMS.forEach(i => pos[i.id] = "BANK");
+
+  Object.entries(lists).forEach(([cat, list])=>{
+    list.querySelectorAll(".chip").forEach(ch=>{
+      pos[ch.dataset.id] = cat;
+    });
+  });
+
+  bank.querySelectorAll(".chip").forEach(ch=>{
+    pos[ch.dataset.id] = "BANK";
+  });
+
+  return pos;
+}
+
+function ensureUniqueChip(id){
+  // remove duplicates if any (safety)
+  document.querySelectorAll(`.chip[data-id="${id}"]`).forEach((el, idx)=>{
+    if (idx > 0) el.remove();
+  });
+}
+
+/* ---------- Build / Reset ---------- */
+function build(){
+  bank.innerHTML = "";
+  listTS.innerHTML = "";
+  listMI.innerHTML = "";
+  listMC.innerHTML = "";
+  clearZoneMarks();
+  scoreBox.classList.add("hidden");
+
+  // shuffle items in bank
+  ITEMS.slice().sort(()=>Math.random()-0.5).forEach(item=>{
+    bank.appendChild(makeChip(item));
+  });
+}
+
+/* ---------- Drag targets (lists + bank) ---------- */
+function setupDropTarget(container, targetCat){
+  container.ondragover = (e) => e.preventDefault();
+  container.ondrop = (e) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData("text/plain") || draggedId;
+    if (!id) return;
+
+    // move dragged element (or find it)
+    let el = draggedEl && draggedEl.dataset.id === id ? draggedEl : document.querySelector(`.chip[data-id="${id}"]`);
+    if (!el) return;
+
+    // move (append) into target
+    container.appendChild(el);
+    ensureUniqueChip(id);
+
+    draggedEl = null;
+    draggedId = null;
+
+    clearZoneMarks();
+  };
+}
+
+// allow dropping into any of the 3 category lists
+setupDropTarget(listTS, "TS");
+setupDropTarget(listMI, "MI");
+setupDropTarget(listMC, "MC");
+// allow dropping back to bank
+setupDropTarget(bank, "BANK");
+
+/* ---------- Check (with auto-reveal) ---------- */
+document.getElementById("check").onclick = () => {
+  clearZoneMarks();
+
+  const placements = allCurrentPlacements();
+  let correct = 0;
+
+  // count correctness
+  ITEMS.forEach(item=>{
+    const where = placements[item.id];
+    if (where === item.cat) correct++;
+  });
+
+  // mark zone status: correct if ALL items in that zone are correct AND it contains all needed items
+  // We'll do simple: if any wrong item is in zone -> wrong; if missing required -> wrong; else correct.
+  ["TS","MI","MC"].forEach(cat=>{
+    const zone = document.querySelector(`.dropzone[data-category="${cat}"]`);
+    const list = lists[cat];
+
+    const requiredIds = ITEMS.filter(i=>i.cat===cat).map(i=>i.id);
+    const placedIds = [...list.querySelectorAll(".chip")].map(ch=>ch.dataset.id);
+
+    const hasWrong = placedIds.some(id => ITEMS.find(i=>i.id===id)?.cat !== cat);
+    const missing = requiredIds.some(id => !placedIds.includes(id));
+
+    if (!hasWrong && !missing) zone.classList.add("correct");
+    else zone.classList.add("wrong");
+  });
+
+  // auto-reveal: move any wrong/missing item into its correct category list
+  ITEMS.forEach(item=>{
+    const where = placements[item.id];
+    if (where !== item.cat) {
+      // find chip element (might be in wrong list or bank)
+      let el = document.querySelector(`.chip[data-id="${item.id}"]`);
+      if (!el){
+        // if missing (shouldn't happen), recreate
+        el = makeChip(item);
+      }
+      lists[item.cat].appendChild(el);
+      ensureUniqueChip(item.id);
+    }
+  });
+
+  scoreBox.textContent = `Score: ${correct} / ${ITEMS.length}`;
+  scoreBox.classList.remove("hidden");
+};
+
+document.getElementById("reset").onclick = build;
+
+/* ---------- Start ---------- */
+build();
+</script>
+</body>
+</html>
