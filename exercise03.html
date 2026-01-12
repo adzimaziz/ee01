@@ -15,7 +15,6 @@
   --accent:#6ea8ff;
   --ok:#35d07f;
   --bad:#ff5a6a;
-  --card:#0f1830;
   --shadow: 0 10px 24px rgba(0,0,0,.30);
   --r:16px;
 }
@@ -74,7 +73,7 @@ button{
   border-radius: 12px;
   background: rgba(110,168,255,.25);
   color:var(--text);
-  font-weight:800;
+  font-weight:900;
   font-size:13px;
 }
 button.secondary{ background: rgba(255,255,255,.10); }
@@ -95,7 +94,7 @@ button.secondary{ background: rgba(255,255,255,.10); }
   gap:12px;
 }
 
-/* BIG category boxes (stacked, mobile-first) */
+/* Category boxes */
 .zone{
   background: var(--panel);
   border: 2px dashed rgba(110,168,255,.45);
@@ -141,6 +140,32 @@ button.secondary{ background: rgba(255,255,255,.10); }
   gap:10px;
 }
 
+/* Chips */
+.chip{
+  background: rgba(255,255,255,.92);
+  color:#0b1220;
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 14px;
+  padding:12px 12px;
+  font-weight:850;
+  font-size:13px;
+  line-height:1.25;
+  cursor:grab;
+  user-select:none;
+  touch-action:none;
+}
+.chip:active{ cursor:grabbing; }
+
+/* ✅ Individual marking */
+.chip.correctChip{
+  border:2px solid rgba(53,208,127,.95);
+  background: rgba(53,208,127,.20);
+}
+.chip.wrongChip{
+  border:2px solid rgba(255,90,106,.95);
+  background: rgba(255,90,106,.16);
+}
+
 /* Bank */
 .bankWrap{
   background: var(--panel);
@@ -165,29 +190,13 @@ button.secondary{ background: rgba(255,255,255,.10); }
   font-size:12px;
   color:var(--muted);
 }
-
 .bank{
   display:flex;
   flex-direction:column;
   gap:10px;
 }
 
-.chip{
-  background: rgba(255,255,255,.92);
-  color:#0b1220;
-  border: 1px solid rgba(0,0,0,.12);
-  border-radius: 14px;
-  padding:12px 12px;
-  font-weight:800;
-  font-size:13px;
-  line-height:1.25;
-  cursor:grab;
-  user-select:none;
-  touch-action:none;
-}
-.chip:active{ cursor:grabbing; }
-
-/* Tablet/desktop: show two columns to reduce scrolling */
+/* Tablet/desktop */
 @media (min-width: 900px){
   .layout{
     display:grid;
@@ -211,7 +220,7 @@ button.secondary{ background: rgba(255,255,255,.10); }
 <body>
 <header>
   <h1>Categorize the Points</h1>
-  <p>Drag each point into the correct category. Tap <b>Check</b> to mark. Wrong/missing items will move to the correct category automatically.</p>
+  <p>Drag each point into the correct category. Tap <b>Check</b> to mark. Boxes go green only when fully correct. Individual correct points also turn green.</p>
 </header>
 
 <main class="container">
@@ -225,7 +234,6 @@ button.secondary{ background: rgba(255,255,255,.10); }
 
   <section class="layout">
     <div class="zonesColumn">
-      <!-- Technical system -->
       <div class="zone" data-zone="TS">
         <div class="zoneHeader">
           <div class="zoneTitle">Technical system</div>
@@ -234,7 +242,6 @@ button.secondary{ background: rgba(255,255,255,.10); }
         <div class="dropList" data-drop-list="TS"></div>
       </div>
 
-      <!-- Management infrastructure -->
       <div class="zone" data-zone="MI">
         <div class="zoneHeader">
           <div class="zoneTitle">Management infrastructure</div>
@@ -243,7 +250,6 @@ button.secondary{ background: rgba(255,255,255,.10); }
         <div class="dropList" data-drop-list="MI"></div>
       </div>
 
-      <!-- Mindsets and capabilities -->
       <div class="zone" data-zone="MC">
         <div class="zoneHeader">
           <div class="zoneTitle">Mindsets and capabilities</div>
@@ -253,11 +259,10 @@ button.secondary{ background: rgba(255,255,255,.10); }
       </div>
     </div>
 
-    <!-- Bank -->
     <aside class="bankWrap">
       <div class="bankHeader">
         <div class="bankTitle">Points (drag from here)</div>
-        <div class="bankHint">Move (not copy). You can re-drag to another box.</div>
+        <div class="bankHint">Move (not copy). Re-drag to another box anytime.</div>
       </div>
       <div class="bank" id="bank"></div>
     </aside>
@@ -265,26 +270,15 @@ button.secondary{ background: rgba(255,255,255,.10); }
 </main>
 
 <script>
-/**
- * Mobile-friendly, no-image version.
- * - Big stacked category boxes.
- * - Chips MOVE between bank and categories.
- * - Check: score + zone highlight.
- * - Auto-correct: wrong/missing chips moved into correct category after Check.
- */
-
 const ITEMS = [
-  // Technical system (TS)
   { id:"ts1", cat:"TS", text:"Mapping energy flow from coal yard to transformer (end-to-end) via theoretical limit analysis" },
   { id:"ts2", cat:"TS", text:"Identification of losses via comparison with plant design and state-of-the-art power plants" },
   { id:"ts3", cat:"TS", text:"Development of measures throughout four main operation areas (primary energy, boiler, turbine, auxiliaries)" },
 
-  // Management infrastructure (MI)
   { id:"mi1", cat:"MI", text:"Build full energy efficiency KPI methodology and targets (broken down to key plant areas & leading KPIs)" },
   { id:"mi2", cat:"MI", text:"Include energy efficiency in shift handover meetings, and in station & fleet management meetings" },
   { id:"mi3", cat:"MI", text:"Create dedicated responsibilities by including energy efficiency in power station manager performance contract" },
 
-  // Mindsets and capabilities (MC)
   { id:"mc1", cat:"MC", text:"Building awareness and capabilities from top/middle management down to shop floor by involving the whole organization" }
 ];
 
@@ -328,8 +322,14 @@ function updateCounts(){
   document.getElementById("countMC").textContent = `${cMC} item${cMC===1?"":"s"}`;
 }
 
-function clearMarks(){
+function clearZoneMarks(){
   Object.values(zones).forEach(z=>z.classList.remove("correct","wrong"));
+}
+
+function clearChipMarks(){
+  document.querySelectorAll(".chip").forEach(ch=>{
+    ch.classList.remove("correctChip","wrongChip");
+  });
 }
 
 function setupDropTarget(container){
@@ -341,24 +341,24 @@ function setupDropTarget(container){
     container.appendChild(draggedEl); // MOVE
     draggedEl = null;
 
-    clearMarks();     // remove highlights while user is working
+    // When moving again, remove marks so they can try again cleanly
+    clearZoneMarks();
+    clearChipMarks();
     updateCounts();
   };
 }
 
 function build(){
-  // clear lists
   bank.innerHTML = "";
   listTS.innerHTML = "";
   listMI.innerHTML = "";
   listMC.innerHTML = "";
-  clearMarks();
+  clearZoneMarks();
+  clearChipMarks();
 
-  // hide score
   scorePill.classList.add("hidden");
   scorePill.textContent = `Score: 0/${ITEMS.length}`;
 
-  // add items to bank (shuffle)
   ITEMS.slice().sort(()=>Math.random()-0.5).forEach(item=>{
     bank.appendChild(makeChip(item));
   });
@@ -366,17 +366,18 @@ function build(){
   updateCounts();
 }
 
-/* Drop targets: categories + bank */
+/* Drop targets */
 setupDropTarget(listTS);
 setupDropTarget(listMI);
 setupDropTarget(listMC);
 setupDropTarget(bank);
 
-/* Check: score + highlight + auto-correct */
+/* Check: (1) zone green only if fully correct, (2) individual correct chips green even if zone is red */
 document.getElementById("check").onclick = () => {
-  clearMarks();
+  clearZoneMarks();
+  clearChipMarks();
 
-  // map id -> where it currently is (TS/MI/MC/BANK)
+  // Build position map id -> current container key (TS/MI/MC/BANK)
   const pos = {};
   ITEMS.forEach(i => pos[i.id] = "BANK");
 
@@ -386,12 +387,24 @@ document.getElementById("check").onclick = () => {
     });
   });
 
-  let correct = 0;
-  ITEMS.forEach(item=>{
-    if (pos[item.id] === item.cat) correct++;
+  // Mark individual chips correct/incorrect (only those placed in TS/MI/MC)
+  let correctCount = 0;
+
+  ["TS","MI","MC"].forEach(cat=>{
+    const list = lists[cat];
+    list.querySelectorAll(".chip").forEach(ch=>{
+      const id = ch.dataset.id;
+      const correctCat = ITEMS.find(i=>i.id===id)?.cat;
+      if (correctCat === cat){
+        ch.classList.add("correctChip");
+        correctCount++;
+      } else {
+        ch.classList.add("wrongChip");
+      }
+    });
   });
 
-  // zone highlight: wrong if missing required or has wrong
+  // Zone logic: green ONLY if all required are present AND no wrong chips in zone
   ["TS","MI","MC"].forEach(cat=>{
     const requiredIds = ITEMS.filter(i=>i.cat===cat).map(i=>i.id);
     const placedIds = [...lists[cat].querySelectorAll(".chip")].map(ch=>ch.dataset.id);
@@ -402,25 +415,35 @@ document.getElementById("check").onclick = () => {
     zones[cat].classList.add((!hasWrong && !missing) ? "correct" : "wrong");
   });
 
-  // auto-correct: move wrong/missing chips into correct category
+  // Auto-correct: move any item not in its correct category into correct category
+  // BUT keep individual marking visible: we'll re-mark after move.
   ITEMS.forEach(item=>{
-    const where = pos[item.id];
-    if (where !== item.cat){
+    if (pos[item.id] !== item.cat){
       let el = document.querySelector(`.chip[data-id="${item.id}"]`);
       if (!el) el = makeChip(item);
       lists[item.cat].appendChild(el);
     }
   });
 
+  // Re-mark chips after auto-correct so users see final correct placement in green
+  clearChipMarks();
+  ["TS","MI","MC"].forEach(cat=>{
+    lists[cat].querySelectorAll(".chip").forEach(ch=>{
+      const id = ch.dataset.id;
+      const correctCat = ITEMS.find(i=>i.id===id)?.cat;
+      if (correctCat === cat) ch.classList.add("correctChip");
+      else ch.classList.add("wrongChip");
+    });
+  });
+
   updateCounts();
 
-  scorePill.textContent = `Score: ${correct}/${ITEMS.length}`;
+  scorePill.textContent = `Score: ${correctCount}/${ITEMS.length}`;
   scorePill.classList.remove("hidden");
 };
 
 document.getElementById("reset").onclick = build;
 
-/* Start */
 build();
 </script>
 </body>
