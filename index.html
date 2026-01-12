@@ -108,6 +108,7 @@
       color:var(--text);
       font-weight:800;
     }
+    .hidden{ display:none !important; }
 
     .canvas{
       position:relative;
@@ -115,7 +116,6 @@
       background: rgba(0,0,0,.10);
     }
 
-    /* Diagram container keeps 16:9-ish shape but responsive */
     .diagram{
       position:relative;
       width:100%;
@@ -131,10 +131,10 @@
       width:100%;
       height:100%;
       object-fit:contain;
-      background:#fff; /* so your white diagram looks clean */
+      background:#fff;
     }
 
-    /* Drop zones (hotspots) */
+    /* ✅ Drop zone text now BLACK */
     .dropzone{
       position:absolute;
       border-radius: 14px;
@@ -145,7 +145,7 @@
       justify-content:center;
       text-align:center;
       padding:8px;
-      color: rgba(234,241,255,.9);
+      color: #000;                 /* ✅ black text */
       font-weight:800;
       font-size:12px;
       line-height:1.1;
@@ -159,7 +159,6 @@
     .dropzone.correct{ border-color: rgba(53,208,127,.95); background: rgba(53,208,127,.16); }
     .dropzone.wrong{ border-color: rgba(255,90,106,.95); background: rgba(255,90,106,.14); }
 
-    /* Right panel */
     .side{
       background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
       border: 1px solid rgba(255,255,255,.10);
@@ -217,11 +216,6 @@
       box-shadow: 0 0 0 4px rgba(110,168,255,.15);
       flex:none;
     }
-    .chip.inSlot{
-      background: rgba(255,255,255,.05);
-      border-color: rgba(255,255,255,.10);
-      box-shadow: none;
-    }
 
     .footer{
       padding:12px;
@@ -231,7 +225,6 @@
       line-height:1.35;
     }
 
-    /* Mobile */
     @media (max-width: 900px){
       .wrap{ grid-template-columns: 1fr; }
     }
@@ -240,303 +233,4 @@
 <body>
   <header>
     <h1>Drag & Drop: Label the Gas Turbine (Brayton Cycle) Diagram</h1>
-    <p>Drag labels from the right panel onto the correct hotspots. Then press <b>Check</b>.</p>
-  </header>
-
-  <main class="wrap">
-    <!-- LEFT: Diagram board -->
-    <section class="board">
-      <div class="boardTop">
-        <div class="btns">
-          <button class="primary" id="btnCheck">Check</button>
-          <button id="btnReset">Reset</button>
-          <button id="btnShow">Show Answers</button>
-        </div>
-        <div class="status">
-          <span class="pill" id="scorePill">Score: 0 / 8</span>
-          <span id="msg">Place all labels, then check.</span>
-        </div>
-      </div>
-
-      <div class="canvas">
-        <div class="diagram" id="diagram">
-          <!-- Put your image file in the SAME folder and name it: brayton.png -->
-          <img src="brayton.png" alt="Gas turbine (Brayton cycle) diagram" />
-
-          <!-- Drop zones (positions are % of diagram) -->
-          <!-- Components -->
-          <div class="dropzone" data-accept="Compressor" style="left:3%; top:36%; width:26%; height:30%;">Drop here</div>
-          <div class="dropzone" data-accept="Combustion chamber" style="left:38%; top:8%; width:24%; height:22%;">Drop here</div>
-          <div class="dropzone" data-accept="Turbine" style="left:70%; top:36%; width:26%; height:30%;">Drop here</div>
-
-          <!-- Flows -->
-          <div class="dropzone" data-accept="Fresh air" style="left:10%; top:74%; width:18%; height:14%;">Drop here</div>
-          <div class="dropzone" data-accept="Fuel" style="left:25%; top:1.5%; width:18%; height:12%;">Drop here</div>
-          <div class="dropzone" data-accept="Exhaust gases" style="left:68%; top:70%; width:22%; height:16%;">Drop here</div>
-
-          <!-- State points -->
-          <div class="dropzone small" data-accept="1" style="left:0.7%; top:79%; width:7.5%; height:10%;">#</div>
-          <div class="dropzone small" data-accept="2" style="left:31.5%; top:26%; width:7.5%; height:10%;">#</div>
-          <div class="dropzone small" data-accept="3" style="left:63.5%; top:18%; width:7.5%; height:10%;">#</div>
-          <div class="dropzone small" data-accept="4" style="left:88.5%; top:77%; width:7.5%; height:10%;">#</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- RIGHT: Label bank -->
-    <aside class="side">
-      <div class="sideTop">
-        <h2>Labels</h2>
-        <p class="hint">Drag each label onto the correct place.</p>
-      </div>
-
-      <div class="bank" id="bank">
-        <!-- Chips created by JS to allow easy reset/shuffle -->
-      </div>
-
-      <div class="footer">
-        Tip: If a label is wrong, it will turn red after you press <b>Check</b>.
-        You can still drag it again to fix it.
-      </div>
-    </aside>
-  </main>
-
-  <script>
-    // ====== CONFIG ======
-    const LABELS = [
-      "Compressor",
-      "Combustion chamber",
-      "Turbine",
-      "Fresh air",
-      "Fuel",
-      "Exhaust gases",
-      "1","2","3","4"
-    ];
-
-    // For scoring: we score only these 8 key items OR score all 10.
-    // Change to 10 if you want state points included.
-    const SCORE_OUT_OF = 10;
-
-    // ====== STATE ======
-    let showAnswers = false;
-
-    // ====== HELPERS ======
-    function shuffle(arr){
-      const a = [...arr];
-      for (let i=a.length-1; i>0; i--){
-        const j = Math.floor(Math.random()*(i+1));
-        [a[i],a[j]] = [a[j],a[i]];
-      }
-      return a;
-    }
-
-    function createChip(text){
-      const chip = document.createElement("div");
-      chip.className = "chip";
-      chip.draggable = true;
-      chip.dataset.label = text;
-      chip.innerHTML = `<span class="dot"></span><span>${text}</span>`;
-      chip.addEventListener("dragstart", (e)=>{
-        e.dataTransfer.setData("text/plain", text);
-        // make drag image nicer
-        try{ e.dataTransfer.setDragImage(chip, 10, 10); }catch(_){}
-      });
-      return chip;
-    }
-
-    function clearMarks(){
-      document.querySelectorAll(".dropzone").forEach(z=>{
-        z.classList.remove("correct","wrong");
-      });
-    }
-
-    function dropzoneSetText(zone){
-      const placed = zone.dataset.placed || "";
-      zone.textContent = placed ? placed : "Drop here";
-      if (zone.classList.contains("small")){
-        zone.textContent = placed ? placed : "#";
-      }
-    }
-
-    function setMessage(text){
-      document.getElementById("msg").textContent = text;
-    }
-
-    function updateScore(){
-      const zones = [...document.querySelectorAll(".dropzone")];
-      let correct = 0;
-      zones.forEach(z=>{
-        const need = z.dataset.accept;
-        const got  = z.dataset.placed || "";
-        if (got && got === need) correct++;
-      });
-      document.getElementById("scorePill").textContent = `Score: ${correct} / ${SCORE_OUT_OF}`;
-      return correct;
-    }
-
-    // ====== INIT BANK ======
-    function buildBank(){
-      const bank = document.getElementById("bank");
-      bank.innerHTML = "";
-      shuffle(LABELS).forEach(t => bank.appendChild(createChip(t)));
-    }
-
-    // ====== DRAG & DROP ======
-    function setupDropzones(){
-      document.querySelectorAll(".dropzone").forEach(zone=>{
-        zone.addEventListener("dragover", (e)=>{
-          e.preventDefault();
-          zone.classList.add("over");
-        });
-        zone.addEventListener("dragleave", ()=>{
-          zone.classList.remove("over");
-        });
-        zone.addEventListener("drop", (e)=>{
-          e.preventDefault();
-          zone.classList.remove("over");
-          clearMarks();
-          setMessage("Placed. Keep going!");
-
-          const label = e.dataTransfer.getData("text/plain");
-          if (!label) return;
-
-          // If zone already has a label, return it to bank
-          const prev = zone.dataset.placed;
-          if (prev){
-            returnLabelToBank(prev);
-          }
-
-          // Place new label in zone
-          zone.dataset.placed = label;
-          zone.classList.add("filled");
-          dropzoneSetText(zone);
-
-          // Remove chip from bank if exists
-          removeChipFromBank(label);
-
-          updateScore();
-        });
-      });
-    }
-
-    function removeChipFromBank(label){
-      const bank = document.getElementById("bank");
-      const chip = [...bank.querySelectorAll(".chip")].find(c => c.dataset.label === label);
-      if (chip) chip.remove();
-    }
-
-    function returnLabelToBank(label){
-      const bank = document.getElementById("bank");
-      // avoid duplicates
-      const exists = [...bank.querySelectorAll(".chip")].some(c => c.dataset.label === label);
-      if (!exists) bank.appendChild(createChip(label));
-    }
-
-    // Allow dragging labels back to bank (to "unplace")
-    function setupBankDrop(){
-      const bank = document.getElementById("bank");
-      bank.addEventListener("dragover", (e)=> e.preventDefault());
-      bank.addEventListener("drop", (e)=>{
-        e.preventDefault();
-        clearMarks();
-        setMessage("Returned to labels.");
-
-        const label = e.dataTransfer.getData("text/plain");
-        if (!label) return;
-
-        // Find any zone that has this label and clear it
-        const zone = [...document.querySelectorAll(".dropzone")].find(z => (z.dataset.placed || "") === label);
-        if (zone){
-          delete zone.dataset.placed;
-          zone.classList.remove("filled");
-          dropzoneSetText(zone);
-        }
-
-        // Add back to bank if missing
-        returnLabelToBank(label);
-        updateScore();
-      });
-    }
-
-    // ====== BUTTONS ======
-    document.getElementById("btnCheck").addEventListener("click", ()=>{
-      const zones = [...document.querySelectorAll(".dropzone")];
-      let allPlaced = true;
-
-      zones.forEach(z=>{
-        const need = z.dataset.accept;
-        const got  = z.dataset.placed || "";
-        if (!got) allPlaced = false;
-
-        z.classList.remove("correct","wrong");
-        if (got){
-          if (got === need) z.classList.add("correct");
-          else z.classList.add("wrong");
-        }
-      });
-
-      const score = updateScore();
-      if (!allPlaced){
-        setMessage("Some spots are still empty. Fill them all (or press Show Answers).");
-      } else if (score === SCORE_OUT_OF){
-        setMessage("Perfect! ✅ All correct.");
-      } else {
-        setMessage("Checked. Fix the red ones and check again.");
-      }
-    });
-
-    document.getElementById("btnReset").addEventListener("click", ()=>{
-      showAnswers = false;
-      document.getElementById("btnShow").textContent = "Show Answers";
-      clearMarks();
-      setMessage("Reset done. Start again!");
-      // clear zones
-      document.querySelectorAll(".dropzone").forEach(z=>{
-        delete z.dataset.placed;
-        z.classList.remove("filled","correct","wrong");
-        dropzoneSetText(z);
-      });
-      buildBank();
-      updateScore();
-    });
-
-    document.getElementById("btnShow").addEventListener("click", ()=>{
-      showAnswers = !showAnswers;
-      const btn = document.getElementById("btnShow");
-      btn.textContent = showAnswers ? "Hide Answers" : "Show Answers";
-      clearMarks();
-
-      if (showAnswers){
-        // Clear bank and fill everything correctly
-        document.getElementById("bank").innerHTML = "";
-        document.querySelectorAll(".dropzone").forEach(z=>{
-          z.dataset.placed = z.dataset.accept;
-          z.classList.add("filled","correct");
-          dropzoneSetText(z);
-        });
-        setMessage("Answers shown. Press Hide Answers or Reset to try again.");
-      } else {
-        // Hide answers = reset to empty (but keep bank rebuilt)
-        document.querySelectorAll(".dropzone").forEach(z=>{
-          delete z.dataset.placed;
-          z.classList.remove("filled","correct","wrong");
-          dropzoneSetText(z);
-        });
-        buildBank();
-        setMessage("Answers hidden. Try again!");
-      }
-      updateScore();
-    });
-
-    // ====== START ======
-    (function init(){
-      // Set placeholders for zones
-      document.querySelectorAll(".dropzone").forEach(dropzoneSetText);
-      buildBank();
-      setupDropzones();
-      setupBankDrop();
-      updateScore();
-    })();
-  </script>
-</body>
-</html>
+    <p>Drag labels from the right panel onto the correct hotspots. Then press <b>Check</b
