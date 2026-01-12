@@ -95,6 +95,7 @@ button.secondary{
   color:black;
   font-weight:800;
   font-size:12px;
+  text-align:center;
 }
 
 .dropzone.correct{background:rgba(53,208,127,.25);border-color:var(--ok)}
@@ -164,34 +165,64 @@ const bank = document.getElementById("bank");
 const zones = document.querySelectorAll(".dropzone");
 const scoreBox = document.getElementById("score");
 
+let draggedChip = null;
+
+/* ---------- BUILD ---------- */
 function build(){
   bank.innerHTML="";
-  labels.sort(()=>Math.random()-0.5).forEach(t=>{
-    const c=document.createElement("div");
-    c.className="chip";
-    c.textContent=t;
-    c.draggable=true;
-    c.ondragstart=e=>e.dataTransfer.setData("text",t);
-    bank.appendChild(c);
+  labels.sort(()=>Math.random()-0.5).forEach(text=>{
+    const chip=document.createElement("div");
+    chip.className="chip";
+    chip.textContent=text;
+    chip.draggable=true;
+
+    chip.ondragstart=e=>{
+      draggedChip = chip;
+      e.dataTransfer.setData("text/plain", text);
+    };
+
+    bank.appendChild(chip);
   });
+
   zones.forEach(z=>{
     z.textContent="Drop here";
     z.dataset.value="";
     z.className="dropzone";
   });
+
   scoreBox.classList.add("hidden");
 }
 
-zones.forEach(z=>{
-  z.ondragover=e=>e.preventDefault();
-  z.ondrop=e=>{
+/* ---------- DROPZONES ---------- */
+zones.forEach(zone=>{
+  zone.ondragover=e=>e.preventDefault();
+
+  zone.ondrop=e=>{
     e.preventDefault();
-    const v=e.dataTransfer.getData("text");
-    z.textContent=v;
-    z.dataset.value=v;
+    if(!draggedChip) return;
+
+    // If zone already has an answer, return it to bank
+    if(zone.dataset.value){
+      const old=document.createElement("div");
+      old.className="chip";
+      old.textContent=zone.dataset.value;
+      old.draggable=true;
+      old.ondragstart=ev=>{
+        draggedChip=old;
+        ev.dataTransfer.setData("text/plain", old.textContent);
+      };
+      bank.appendChild(old);
+    }
+
+    // Move dragged chip into zone
+    zone.textContent = draggedChip.textContent;
+    zone.dataset.value = draggedChip.textContent;
+    draggedChip.remove();
+    draggedChip=null;
   };
 });
 
+/* ---------- CHECK ---------- */
 document.getElementById("check").onclick=()=>{
   let correct=0;
   zones.forEach(z=>{
@@ -200,13 +231,14 @@ document.getElementById("check").onclick=()=>{
       correct++;
     }else{
       z.classList.add("wrong");
-      z.textContent=z.dataset.answer; // ✅ auto show correct answer
+      z.textContent=z.dataset.answer; // auto reveal
     }
   });
   scoreBox.textContent=`Score: ${correct} / ${labels.length}`;
   scoreBox.classList.remove("hidden");
 };
 
+/* ---------- RESET ---------- */
 document.getElementById("reset").onclick=build;
 
 build();
