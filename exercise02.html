@@ -70,7 +70,6 @@ button.secondary{ background:rgba(255,255,255,.1); }
 .status{ font-size:13px; opacity:.9; }
 .hidden{ display:none !important; }
 
-/* helper text under image */
 .helper{
   padding:10px 12px 0;
   font-size:12px;
@@ -126,7 +125,6 @@ button.secondary{ background:rgba(255,255,255,.1); }
 .dropzone.correct{ background:rgba(53,208,127,.25); border-color:var(--ok); }
 .dropzone.wrong{ background:rgba(255,90,106,.25); border-color:var(--bad); }
 
-/* tap feedback */
 .dropzone.active{
   outline:3px solid rgba(110,168,255,.7);
   outline-offset:2px;
@@ -165,7 +163,7 @@ button.secondary{ background:rgba(255,255,255,.1); }
 <body>
 <header>
   <h2>Calculation of Energy Content of a Mass Flow Rate</h2>
-  <p><b>Tap a label</b>, then <b>tap a box</b>. Tip: tap a filled box to return its label.</p>
+  <p><b>Tap a label</b> → <b>tap any box</b>. Only TPS labels are counted correct if placed in the <b>right 3 boxes</b>.</p>
 </header>
 
 <main class="container">
@@ -182,7 +180,7 @@ button.secondary{ background:rgba(255,255,255,.1); }
       <div class="diagram">
         <img src="massflow.png" alt="Energy content of a mass flow diagram">
 
-        <!-- Fixed-match zones -->
+        <!-- Left/middle: any label can go here -->
         <div class="dropzone" data-answer="Energy content of a mass flow"
              style="left:5%; top:36%; width:22%; height:28%;">Tap here</div>
 
@@ -192,20 +190,20 @@ button.secondary{ background:rgba(255,255,255,.1); }
         <div class="dropzone" data-answer="Enthalpy of mass flow rate"
              style="left:35%; top:58%; width:28%; height:28%;">Tap here</div>
 
-        <!-- Right column: ANY of these 3 labels can go into ANY of these 3 boxes -->
-        <div class="dropzone groupHint" data-group="TPS"
+        <!-- Right column (TPS): any label allowed, but only TPS labels score correct -->
+        <div class="dropzone" data-group="TPS"
              style="left:72%; top:34%; width:24%; height:14%;">Tap here</div>
 
-        <div class="dropzone groupHint" data-group="TPS"
+        <div class="dropzone" data-group="TPS"
              style="left:72%; top:52%; width:24%; height:14%;">Tap here</div>
 
-        <div class="dropzone groupHint" data-group="TPS"
+        <div class="dropzone" data-group="TPS"
              style="left:72%; top:70%; width:24%; height:16%;">Tap here</div>
       </div>
 
       <div class="helper">
         <span class="pill"><span class="dot"></span> Step 1: Tap a label</span>
-        <span class="pill"><span class="dot"></span> Step 2: Tap a box</span>
+        <span class="pill"><span class="dot"></span> Step 2: Tap any box</span>
         <span class="pill">Tap filled box = return label</span>
       </div>
     </div>
@@ -227,8 +225,7 @@ const labels = [
   "Steam content"
 ];
 
-// These can be placed in ANY of the zones with data-group="TPS"
-const FLEX_GROUP = new Set(["Temperature","Pressure","Steam content"]);
+const TPS = new Set(["Temperature","Pressure","Steam content"]);
 
 const bank = document.getElementById("bank");
 const zones = [...document.querySelectorAll(".dropzone")];
@@ -237,7 +234,6 @@ const scoreBox = document.getElementById("score");
 let selectedChip = null;
 let selectedText = "";
 
-/* --- helpers --- */
 function clearSelection(){
   document.querySelectorAll(".chip.selected").forEach(c=>c.classList.remove("selected"));
   selectedChip = null;
@@ -269,21 +265,8 @@ function makeChip(text){
   return chip;
 }
 
-function zoneAccepts(zone, label){
-  if (zone.dataset.group === "TPS") return FLEX_GROUP.has(label);
-  return zone.dataset.answer === label;
-}
-
-/* Place label into zone (MOVE not copy) */
+/* Place label into zone (MOVE not copy) — NO BLOCKING */
 function placeIntoZone(zone, label){
-  // block invalid
-  if(!zoneAccepts(zone, label)){
-    zone.classList.remove("correct");
-    zone.classList.add("wrong");
-    setTimeout(()=>zone.classList.remove("wrong"), 350);
-    return;
-  }
-
   // If zone already filled, return old value to bank
   if(zone.dataset.value){
     bank.appendChild(makeChip(zone.dataset.value));
@@ -303,13 +286,12 @@ function placeIntoZone(zone, label){
 /* Tap zones */
 zones.forEach(zone=>{
   zone.addEventListener("click", () => {
-    // if user selected a label -> place it
     if(selectedText){
       placeIntoZone(zone, selectedText);
       return;
     }
 
-    // if no label selected, tapping a filled zone returns it to bank
+    // no label selected: tap filled box to return label
     if(zone.dataset.value){
       bank.appendChild(makeChip(zone.dataset.value));
       zone.dataset.value = "";
@@ -334,17 +316,21 @@ function build(){
   scoreBox.classList.add("hidden");
 }
 
-/* Check */
+/* Check:
+   - Left/middle boxes: correct only if matches their own data-answer
+   - Right TPS boxes: correct only if value is Temperature/Pressure/Steam content
+   (placement is free anywhere)
+*/
 document.getElementById("check").onclick = () => {
   clearSelection();
   let correct = 0;
 
   zones.forEach(z=>{
     z.classList.remove("correct","wrong");
-    const val = z.dataset.value || "";
+    const val = (z.dataset.value || "").trim();
 
     if (z.dataset.group === "TPS") {
-      if (FLEX_GROUP.has(val)) {
+      if (TPS.has(val)) {
         z.classList.add("correct");
         correct++;
       } else {
@@ -357,7 +343,7 @@ document.getElementById("check").onclick = () => {
     if(val === z.dataset.answer){
       z.classList.add("correct");
       correct++;
-    }else{
+    } else {
       z.classList.add("wrong");
       z.textContent = z.dataset.answer;
     }
@@ -367,7 +353,6 @@ document.getElementById("check").onclick = () => {
   scoreBox.classList.remove("hidden");
 };
 
-/* Reset */
 document.getElementById("reset").onclick = build;
 
 build();
